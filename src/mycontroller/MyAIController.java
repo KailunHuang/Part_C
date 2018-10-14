@@ -39,6 +39,10 @@ public class MyAIController extends CarController{
 	public void update() {
 		// TODO Auto-generated method stub
 		HashMap<Coordinate, MapTile> currentView = getView();
+		System.out.println(CurrentState);
+		System.out.println(checkDeadEnd(getOrientation(), currentView));
+		System.out.println(this.getPosition());
+		System.out.println(this.getHealth());
 		switch (CurrentState) {
 		case Exploring: exploring(currentView); break;
 		case PickingUpKey: pickingupKey(); break;
@@ -50,17 +54,17 @@ public class MyAIController extends CarController{
 	}
 	
 	public void exploring(HashMap<Coordinate, MapTile> currentView) {
-		// checkStateChange();
-		if(getSpeed() < CAR_MAX_SPEED){       // Need speed to turn and progress toward the exit
+		// checkStateChange();		
+		
+		if(getSpeed() < CAR_MAX_SPEED && CurrentState ==State.Exploring){       // Need speed to turn and progress toward the exit
 			applyForwardAcceleration();   // Tough luck if there's a wall in the way
 		}
-		
-		System.out.println(checkDeadEnd(getOrientation(), currentView));
 		
 		if (checkDeadEnd(getOrientation(), currentView)) {
 			CurrentState = State.DeadEnd;
 			applyBrake();
 		}
+		
 	}
 	
 	public void pickingupKey() {
@@ -84,9 +88,9 @@ public class MyAIController extends CarController{
 		switch(orientation) {
 		case EAST:
 			if (checkNorth(currentView, WALLSENSITIVITY)) {
-				turnRight();
-			}else {
 				turnLeft();
+			}else {
+				turnRight();
 			}
 		case WEST:
 			if (checkNorth(currentView, WALLSENSITIVITY)) {
@@ -108,7 +112,7 @@ public class MyAIController extends CarController{
 			}
 		}
 		
-		if (checkOutOfDeadEnd(orientation, currentView)) {
+		if (checkOutOfDeadEnd(currentView)) {
 			CurrentState = State.Exploring;
 		}
 	}
@@ -173,39 +177,39 @@ public class MyAIController extends CarController{
 		//Coordinate currentPosition = new Coordinate(getPosition());
 		switch (orientation) {
 		case EAST: 
-			return (eastDeadEnd(currentView));
+			return (eastDeadEnd(currentView)); 
 		case WEST:
-			return (westDeadEnd(currentView));
+			return (westDeadEnd(currentView)); 
 		case NORTH: 
-			return (northDeadEnd(currentView));
+			return (northDeadEnd(currentView)); 
 		case SOUTH:
-			return (southDeadEnd(currentView));
+			return (southDeadEnd(currentView)); 
 		}
 		return false;
 	}
 	
-	public boolean checkOutOfDeadEnd(WorldSpatial.Direction orientation, HashMap<Coordinate, MapTile> currentView){
-		//Coordinate currentPosition = new Coordinate(getPosition());
-		switch(orientation) {
-		case EAST: 
-			return (!checkSouth(currentView, WALLSENSITIVITY) && !checkNorth(currentView, WALLSENSITIVITY)
-					&& !checkEast(currentView, WALLSENSITIVITY));
-		case WEST: 
-			return (!checkSouth(currentView, WALLSENSITIVITY) && !checkNorth(currentView, WALLSENSITIVITY)
-					&& !checkWest(currentView, WALLSENSITIVITY));
-		case NORTH:
-			return (!checkEast(currentView, WALLSENSITIVITY) && !checkNorth(currentView, WALLSENSITIVITY)
-				&& !checkWest(currentView, WALLSENSITIVITY));
-		case SOUTH:
-			return (!checkSouth(currentView, WALLSENSITIVITY) && !checkEast(currentView, WALLSENSITIVITY)
-					&& !checkWest(currentView, WALLSENSITIVITY));
+	public boolean checkOutOfDeadEnd(HashMap<Coordinate, MapTile> currentView) {
+		if (!checkSouth(currentView, WALLSENSITIVITY) && !checkNorth(currentView, WALLSENSITIVITY)
+					&& !checkEast(currentView, WALLSENSITIVITY)) {
+			return true;
+		}else if(!checkSouth(currentView, WALLSENSITIVITY) && !checkNorth(currentView, WALLSENSITIVITY)
+		&& !checkWest(currentView, WALLSENSITIVITY)){
+			return true;
+		}else if (!checkEast(currentView, WALLSENSITIVITY) && !checkNorth(currentView, WALLSENSITIVITY)
+				&& !checkWest(currentView, WALLSENSITIVITY)) {
+			return true;
+		}else if(!checkSouth(currentView, WALLSENSITIVITY) && !checkEast(currentView, WALLSENSITIVITY)
+					&& !checkWest(currentView, WALLSENSITIVITY)) {
+			return true;
+		}else {
+			return false;
 		}
-		return false; 
+		
 	}
 	
 	public boolean eastDeadEnd(HashMap<Coordinate, MapTile> currentView) {
 		if (checkSouth(currentView, WALLSENSITIVITY) && checkNorth(currentView, WALLSENSITIVITY)
-				&& checkEast(currentView, 1)) {
+				&& checkEast(currentView, WALLSENSITIVITY)) {
 			return true;
 		}
 		return false;
