@@ -43,6 +43,16 @@ public class MyAIController extends CarController{
 		System.out.println(checkDeadEnd(getOrientation(), currentView));
 		System.out.println(this.getPosition());
 		System.out.println(this.getHealth());
+		
+		for (Coordinate x:currentView.keySet()) {
+			if (detected.get(x)!=null) {
+				if (detected.get(x)==false) {
+					detected.put(x, true);
+					map.put(x, currentView.get(x));
+				}
+			}
+		}
+		
 		switch (CurrentState) {
 		case Exploring: exploring(currentView); break;
 		case PickingUpKey: pickingupKey(); break;
@@ -63,8 +73,10 @@ public class MyAIController extends CarController{
 		if (checkDeadEnd(getOrientation(), currentView)) {
 			CurrentState = State.DeadEnd;
 			applyBrake();
-		}
+		}else {
+			
 		
+		}
 	}
 	
 	public void pickingupKey() {
@@ -79,6 +91,63 @@ public class MyAIController extends CarController{
 		
 	}
 	
+	/**
+	 * Check if you have a wall in front of you!
+	 * @param orientation the orientation we are in based on WorldSpatial
+	 * @param currentView what the car can currently see
+	 * @return
+	 */
+	private boolean checkWallAhead(WorldSpatial.Direction orientation, HashMap<Coordinate, MapTile> currentView){
+		switch(orientation){
+		case EAST:
+			return checkEast(currentView,WALLSENSITIVITY);
+		case NORTH:
+			return checkNorth(currentView,WALLSENSITIVITY);
+		case SOUTH:
+			return checkSouth(currentView,WALLSENSITIVITY);
+		case WEST:
+			return checkWest(currentView,WALLSENSITIVITY);
+		default:
+			return false;
+		}
+	}
+	
+	/**
+	 * Check if the wall is on your left hand side given your orientation
+	 * @param orientation
+	 * @param currentView
+	 * @return
+	 */
+	private boolean checkFollowingWall(WorldSpatial.Direction orientation, HashMap<Coordinate, MapTile> currentView) {
+		
+		switch(orientation){
+		case EAST:
+			return checkNorth(currentView,WALLSENSITIVITY);
+		case NORTH:
+			return checkWest(currentView,WALLSENSITIVITY);
+		case SOUTH:
+			return checkEast(currentView,WALLSENSITIVITY);
+		case WEST:
+			return checkSouth(currentView,WALLSENSITIVITY);
+		default:
+			return false;
+		}	
+	}
+	
+	public boolean checkRightWall(WorldSpatial.Direction orientation, HashMap<Coordinate, MapTile> currentView) {
+		switch(orientation) {
+		case EAST:
+			return checkSouth(currentView,WALLSENSITIVITY);
+		case NORTH:
+			return checkEast(currentView,WALLSENSITIVITY);
+		case SOUTH:
+			return checkWest(currentView,WALLSENSITIVITY);
+		case WEST:
+			return checkNorth(currentView,WALLSENSITIVITY);
+		default:
+			return false;
+		}
+	}
 	public void leaveDeadEnd(HashMap<Coordinate, MapTile> currentView) {
 		if(getSpeed() < CAR_MAX_SPEED) {
 			applyReverseAcceleration();
@@ -92,24 +161,28 @@ public class MyAIController extends CarController{
 			}else {
 				turnRight();
 			}
+			break;
 		case WEST:
 			if (checkNorth(currentView, WALLSENSITIVITY)) {
 				turnLeft();
 			}else {
 				turnRight();
 			}
+			break;
 		case NORTH:
 			if (checkWest(currentView, WALLSENSITIVITY)) {
 				turnRight();
 			}else {
 				turnLeft();
 			}
+			break;
 		case SOUTH: 
 			if (checkWest(currentView, WALLSENSITIVITY)) {
 				turnLeft();
 			}else {
 				turnRight();
 			}
+			break;
 		}
 		
 		if (checkOutOfDeadEnd(currentView)) {
