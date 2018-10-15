@@ -2,6 +2,8 @@ package mycontroller;
 
 import controller.CarController;
 import tiles.MapTile;
+import tiles.TrapTile;
+import tiles.LavaTrap;
 import utilities.Coordinate;
 
 import java.util.HashMap;
@@ -40,9 +42,9 @@ public class MyAIController extends CarController{
 		// TODO Auto-generated method stub
 		HashMap<Coordinate, MapTile> currentView = getView();
 		System.out.println(CurrentState);
-		System.out.println(checkDeadEnd(getOrientation(), currentView));
-		System.out.println(this.getPosition());
-		System.out.println(this.getHealth());
+//		System.out.println(checkDeadEnd(getOrientation(), currentView));
+//		System.out.println(this.getPosition());
+//		System.out.println(this.getHealth());
 		
 		for (Coordinate x:currentView.keySet()) {
 			if (detected.get(x)!=null) {
@@ -55,7 +57,7 @@ public class MyAIController extends CarController{
 		
 		switch (CurrentState) {
 		case Exploring: exploring(currentView); break;
-		case PickingUpKey: pickingupKey(); break;
+		case PickingUpKey: pickingupKey(currentView); break;
 		case Recovery:recover(); break;
 		case WayOut: wayOut(); break; 
 		case DeadEnd: leaveDeadEnd(currentView);break;
@@ -73,13 +75,46 @@ public class MyAIController extends CarController{
 		if (checkDeadEnd(getOrientation(), currentView)) {
 			CurrentState = State.DeadEnd;
 			applyBrake();
-		}else {
-			
+		}else if(findKey(currentView)!=null) {
+			CurrentState = State.PickingUpKey;
+			if (checkWallAhead(getOrientation(), currentView)) {
+				if(checkFollowingWall(getOrientation(),currentView)) {
+					turnRight();
+				}else if(checkRightWall(getOrientation(), currentView)) {
+					turnLeft();
+				}else {
+					turnRight();
+				}
+			}
+		}else{
+			CurrentState = State.Exploring;
+			if (checkWallAhead(getOrientation(), currentView)) {
+				if(checkFollowingWall(getOrientation(),currentView)) {
+					turnRight();
+				}else if(checkRightWall(getOrientation(), currentView)) {
+					turnLeft();
+				}else {
+					turnRight();
+				}
+			}
 		
 		}
 	}
 	
-	public void pickingupKey() {
+	public void pickingupKey(HashMap<Coordinate, MapTile> currentView) {
+		Coordinate currentPosition = new Coordinate(getPosition());
+		Coordinate key = findKey(currentView);
+		System.out.println("key is null "+key+"\n");
+		//System.out.println("can i move there "+canIMoveThere(currentPosition,key));
+		if (key == null) {
+			CurrentState = State.Exploring;
+		}else {
+			if(!canIMoveThere(currentPosition,key) || key==null) {
+				CurrentState = State.Exploring;
+			}else {
+				movePointToPoint(currentPosition, key);
+			}
+		}
 		
 	}
 	
@@ -118,6 +153,7 @@ public class MyAIController extends CarController{
 	 * @param currentView
 	 * @return
 	 */
+	//it also called check left wall
 	private boolean checkFollowingWall(WorldSpatial.Direction orientation, HashMap<Coordinate, MapTile> currentView) {
 		
 		switch(orientation){
@@ -203,8 +239,14 @@ public class MyAIController extends CarController{
 		Coordinate currentPosition = new Coordinate(getPosition());
 		for(int i = 0; i <= wallSensitivity; i++){
 			MapTile tile = currentView.get(new Coordinate(currentPosition.x+i, currentPosition.y));
+			
 			if(tile.isType(MapTile.Type.WALL)){
 				return true;
+			}else if(tile.isType(MapTile.Type.TRAP)) {
+				TrapTile trap = (TrapTile)tile;
+				if (trap.getTrap().equals("mud")) {
+					return true;
+				}
 			}
 		}
 		return false;
@@ -215,8 +257,14 @@ public class MyAIController extends CarController{
 		Coordinate currentPosition = new Coordinate(getPosition());
 		for(int i = 0; i <= wallSensitivity; i++){
 			MapTile tile = currentView.get(new Coordinate(currentPosition.x-i, currentPosition.y));
-			if(tile.isType(MapTile.Type.WALL)){
+			
+			if(tile.isType(MapTile.Type.WALL) || tile.getType().equals("mud")){
 				return true;
+			}else if(tile.isType(MapTile.Type.TRAP)) {
+				TrapTile trap = (TrapTile)tile;
+				if (trap.getTrap().equals("mud")) {
+					return true;
+				}
 			}
 		}
 		return false;
@@ -227,8 +275,14 @@ public class MyAIController extends CarController{
 		Coordinate currentPosition = new Coordinate(getPosition());
 		for(int i = 0; i <= wallSensitivity; i++){
 			MapTile tile = currentView.get(new Coordinate(currentPosition.x, currentPosition.y+i));
-			if(tile.isType(MapTile.Type.WALL)){
+			
+			if(tile.isType(MapTile.Type.WALL) || tile.getType().equals("mud")){
 				return true;
+			}else if(tile.isType(MapTile.Type.TRAP)) {
+				TrapTile trap = (TrapTile)tile;
+				if (trap.getTrap().equals("mud")) {
+					return true;
+				}
 			}
 		}
 		return false;
@@ -239,8 +293,14 @@ public class MyAIController extends CarController{
 		Coordinate currentPosition = new Coordinate(getPosition());
 		for(int i = 0; i <= wallSensitivity; i++){
 			MapTile tile = currentView.get(new Coordinate(currentPosition.x, currentPosition.y-i));
-			if(tile.isType(MapTile.Type.WALL)){
+			
+			if(tile.isType(MapTile.Type.WALL) || tile.getType().equals("mud")){
 				return true;
+			}else if(tile.isType(MapTile.Type.TRAP)) {
+				TrapTile trap = (TrapTile)tile;
+				if (trap.getTrap().equals("mud")) {
+					return true;
+				}
 			}
 		}
 		return false;
@@ -312,5 +372,59 @@ public class MyAIController extends CarController{
 		return false;
 	}
 	
+	public Coordinate findKey(HashMap<Coordinate, MapTile> currentView) {
+		for (Coordinate x: currentView.keySet()) {
+			MapTile tile = currentView.get(x);
+			if(currentView.get(x).isType(MapTile.Type.TRAP)) {
+				TrapTile trap = (TrapTile)tile;
+				if (trap.getTrap().equals("lava")) {
+					LavaTrap lava = (LavaTrap) trap;
+					if (lava.getKey() > 0) {
+						System.out.println(x);
+						System.out.println(getPosition());
+						return x;
+					}
+				}
+			}
+		}
+		return null;
+	}
 	
+	//is that possible from aim coordinate to current coordinate to  
+	public boolean canIMoveThere(Coordinate aim_coordi, Coordinate current_coordi){
+		//System.out.println("aim_coordi "+aim_coordi);
+		//System.out.println("key "+current_coordi);
+		if ((aim_coordi.y >= current_coordi.y) && (aim_coordi.x <= current_coordi.x)) {
+			return (!isThereWallBetweenTheTwoPoints(aim_coordi.x, current_coordi.x, aim_coordi.y, current_coordi.y));
+		}else if ((aim_coordi.y <= current_coordi.y) && (aim_coordi.x <= current_coordi.x)){
+			return (!isThereWallBetweenTheTwoPoints(aim_coordi.x, current_coordi.x, current_coordi.y, aim_coordi.y));
+		}else if((aim_coordi.y >= current_coordi.y) && (aim_coordi.x >= current_coordi.x)) {
+			return (!isThereWallBetweenTheTwoPoints(current_coordi.x, aim_coordi.x, aim_coordi.y, current_coordi.y));
+		}else if((aim_coordi.y <= current_coordi.y) && (aim_coordi.x >= current_coordi.x)) {
+			return (!isThereWallBetweenTheTwoPoints(current_coordi.x, aim_coordi.x, current_coordi.y, aim_coordi.y));
+		}else {
+			return false; 
+		}
+	}
+	
+	public boolean isThereWallBetweenTheTwoPoints(int left, int right, int up, int down) {
+		for (int a = left; a <= right; a++) {
+			for (int b = down; b <= up; b++) {
+				MapTile tile = map.get(new Coordinate(a,b));
+				if (tile.isType(MapTile.Type.WALL)) {
+					return true;
+				}if (tile.isType(MapTile.Type.TRAP)) {
+					TrapTile trap = (TrapTile)tile;
+					if (trap.getTrap().equals("mud")) {
+						return true;
+					}
+				}
+			}
+		}
+		return false; 
+	}
+	
+	public void movePointToPoint(Coordinate aim_coordi, Coordinate current_coordi) {
+		
+	}
 }
