@@ -17,6 +17,10 @@ public class MyAIController extends CarController{
 	HashMap<Coordinate, MapTile> map = getMap();
 	HashMap<Coordinate, Boolean> detected = new HashMap<Coordinate, Boolean>();
 	HashMap<Coordinate, Boolean> Track = new HashMap<Coordinate, Boolean>();
+	ArrayList<Coordinate> FoundKeys = new ArrayList<Coordinate>();
+	
+	
+	private boolean KeyAccessbility = false;
 	public enum State {Exploring, PickingUpKey, Recovery, WayOut, DeadEnd};
 	
 	private boolean isFollowingWall = false; // This is set to true when the car starts sticking to a wall.
@@ -61,8 +65,39 @@ public class MyAIController extends CarController{
 		case Recovery:recover(); break;
 		case WayOut: wayOut(); break; 
 		case DeadEnd: leaveDeadEnd(currentView);break;
+		}	
+		
+		
+		System.out.print("\n");
+	}
+	
+	public void exploring(HashMap<Coordinate, MapTile> currentView) {
+		// checkStateChange();		
+		Coordinate currentPosition = new Coordinate(getPosition());
+		if (checkDeadEnd(getOrientation(), currentView)) {
+			CurrentState = State.DeadEnd;
+			applyBrake();
+		}else if(findKey(currentView)!=null) {
+			Coordinate key = findKey(currentView);
+			if(!canIMoveThere(currentPosition,key,currentView)) {
+				simpleMove(currentView);
+			}else {
+				CurrentState = State.PickingUpKey;
+			}
+		}else{
+			simpleMove(currentView);
+			
 		}
-		if (CurrentState != State.DeadEnd && CurrentState!=State.Recovery) {
+		
+	}
+	
+	public void simpleMove(HashMap<Coordinate, MapTile> currentView) {
+		if(getSpeed() < CAR_MAX_SPEED && CurrentState ==State.Exploring){       // Need speed to turn and progress toward the exit
+			applyForwardAcceleration();   // Tough luck if there's a wall in the way
+		}
+		
+		
+		if (!toNewPlace()) {
 			if (checkWallAhead(getOrientation(), currentView)) {
 				if(checkFollowingWall(getOrientation(),currentView)) {
 					turnRight();
@@ -73,28 +108,8 @@ public class MyAIController extends CarController{
 				}
 			}
 		}
-		
-		System.out.print("\n");
 	}
 	
-	public void exploring(HashMap<Coordinate, MapTile> currentView) {
-		// checkStateChange();		
-		
-		if(getSpeed() < CAR_MAX_SPEED && CurrentState ==State.Exploring){       // Need speed to turn and progress toward the exit
-			applyForwardAcceleration();   // Tough luck if there's a wall in the way
-		}
-		
-		if (checkDeadEnd(getOrientation(), currentView)) {
-			CurrentState = State.DeadEnd;
-			applyBrake();
-		}else if(findKey(currentView)!=null) {
-			CurrentState = State.PickingUpKey;
-			
-		}else{
-			CurrentState = State.Exploring;
-			
-		}
-	}
 	
 	public void pickingupKey(HashMap<Coordinate, MapTile> currentView) {
 		Coordinate currentPosition = new Coordinate(getPosition());
@@ -102,14 +117,31 @@ public class MyAIController extends CarController{
 		System.out.println("key is null "+key);
 		//System.out.println("can i move there "+canIMoveThere(currentPosition,key));
 		if (key == null) {
+			if (checkWallAhead(getOrientation(), currentView)) {
+				if(checkFollowingWall(getOrientation(),currentView)) {
+					turnRight();
+				}else if(checkRightWall(getOrientation(), currentView)) {
+					turnLeft();
+				}else {
+					turnRight();
+				}
+			}
 			CurrentState = State.Exploring;
 		}else {
-			System.out.println("can i move there "+canIMoveThere(currentPosition,key));
-			if(!canIMoveThere(currentPosition,key)) {
+			System.out.println("can i move there "+canIMoveThere(currentPosition,key,currentView));
+			if(!canIMoveThere(currentPosition,key,currentView)) {
+				if (checkWallAhead(getOrientation(), currentView)) {
+					if(checkFollowingWall(getOrientation(),currentView)) {
+						turnRight();
+					}else if(checkRightWall(getOrientation(), currentView)) {
+						turnLeft();
+					}else {
+						turnRight();
+					}
+				}
 				CurrentState = State.Exploring;
 			}else {
-				movePointToPoint(key, currentPosition);
-				CurrentState = State.Exploring;
+				movePointToPoint(key, currentPosition,currentView);
 			}
 		}
 		
@@ -122,6 +154,51 @@ public class MyAIController extends CarController{
 	public void wayOut() {
 		
 	}
+	
+	public void leaveDeadEnd(HashMap<Coordinate, MapTile> currentView) {
+		if(getSpeed() < CAR_MAX_SPEED) {
+			applyReverseAcceleration();
+		}
+		
+		WorldSpatial.Direction orientation = getOrientation();
+		System.out.println(checkOutOfDeadEnd(currentView));
+		if (checkOutOfDeadEnd(currentView)) {
+			switch(orientation) {
+			case EAST:
+				if (checkNorth(currentView, WALLSENSITIVITY)) {
+					turnLeft();
+				}else {
+					turnRight();
+				}
+				break;
+			case WEST:
+				if (checkNorth(currentView, WALLSENSITIVITY)) {
+					turnRight();
+				}else {
+					turnLeft();
+				}
+				break;
+			case NORTH:
+				if (checkWest(currentView, WALLSENSITIVITY)) {
+					turnRight();
+				}else {
+					turnLeft();
+				}
+				break;
+			case SOUTH: 
+				if (checkWest(currentView, WALLSENSITIVITY)) {
+					turnLeft();
+				}else {
+					turnRight();
+				}
+				break;
+			}
+
+			CurrentState = State.Exploring;
+			applyBrake();
+		}
+	}
+	
 	
 	/**
 	 * Check if you have a wall in front of you!
@@ -179,47 +256,6 @@ public class MyAIController extends CarController{
 			return checkNorth(currentView,WALLSENSITIVITY);
 		default:
 			return false;
-		}
-	}
-	public void leaveDeadEnd(HashMap<Coordinate, MapTile> currentView) {
-		if(getSpeed() < CAR_MAX_SPEED) {
-			applyReverseAcceleration();
-		}
-		
-		WorldSpatial.Direction orientation = getOrientation();
-		switch(orientation) {
-		case EAST:
-			if (checkNorth(currentView, WALLSENSITIVITY)) {
-				turnLeft();
-			}else {
-				turnRight();
-			}
-			break;
-		case WEST:
-			if (checkNorth(currentView, WALLSENSITIVITY)) {
-				turnLeft();
-			}else {
-				turnRight();
-			}
-			break;
-		case NORTH:
-			if (checkWest(currentView, WALLSENSITIVITY)) {
-				turnRight();
-			}else {
-				turnLeft();
-			}
-			break;
-		case SOUTH: 
-			if (checkWest(currentView, WALLSENSITIVITY)) {
-				turnLeft();
-			}else {
-				turnRight();
-			}
-			break;
-		}
-		
-		if (checkOutOfDeadEnd(currentView)) {
-			CurrentState = State.Exploring;
 		}
 	}
 	
@@ -318,7 +354,10 @@ public class MyAIController extends CarController{
 		return false;
 	}
 	
+	
+	//return true if as least three direction of the car is free
 	public boolean checkOutOfDeadEnd(HashMap<Coordinate, MapTile> currentView) {
+		
 		if (!checkSouth(currentView, WALLSENSITIVITY) && !checkNorth(currentView, WALLSENSITIVITY)
 					&& !checkEast(currentView, WALLSENSITIVITY)) {
 			return true;
@@ -376,7 +415,7 @@ public class MyAIController extends CarController{
 				TrapTile trap = (TrapTile)tile;
 				if (trap.getTrap().equals("lava")) {
 					LavaTrap lava = (LavaTrap) trap;
-					if (lava.getKey() > 0) {
+					if (lava.getKey() > 0 && !FoundKeys.contains(x)) {
 						//System.out.println(x);
 						System.out.println(getPosition());
 						return x;
@@ -388,19 +427,24 @@ public class MyAIController extends CarController{
 	}
 	
 	//is that possible from aim coordinate to current coordinate to  
-	public boolean canIMoveThere(Coordinate aim_coordi, Coordinate current_coordi){
+	public boolean canIMoveThere(Coordinate aim_coordi, Coordinate current_coordi,HashMap<Coordinate, MapTile> currentView){
 		//System.out.println("aim_coordi "+aim_coordi);
 		//System.out.println("key "+current_coordi);
 		if ((aim_coordi.y >= current_coordi.y) && (aim_coordi.x <= current_coordi.x)) {
-			return (!isThereWallBetweenTheTwoPoints(aim_coordi.x, current_coordi.x, aim_coordi.y, current_coordi.y));
+			KeyAccessbility = !isThereWallBetweenTheTwoPoints(aim_coordi.x, current_coordi.x, aim_coordi.y, current_coordi.y);
+			return (KeyAccessbility);
 		}else if ((aim_coordi.y <= current_coordi.y) && (aim_coordi.x <= current_coordi.x)){
-			return (!isThereWallBetweenTheTwoPoints(aim_coordi.x, current_coordi.x, current_coordi.y, aim_coordi.y));
+			KeyAccessbility = !isThereWallBetweenTheTwoPoints(aim_coordi.x, current_coordi.x, current_coordi.y, aim_coordi.y);
+			return (KeyAccessbility);
 		}else if((aim_coordi.y >= current_coordi.y) && (aim_coordi.x >= current_coordi.x)) {
-			return (!isThereWallBetweenTheTwoPoints(current_coordi.x, aim_coordi.x, aim_coordi.y, current_coordi.y));
+			KeyAccessbility = !isThereWallBetweenTheTwoPoints(current_coordi.x, aim_coordi.x, aim_coordi.y, current_coordi.y);
+			return (KeyAccessbility);
 		}else if((aim_coordi.y <= current_coordi.y) && (aim_coordi.x >= current_coordi.x)) {
-			return (!isThereWallBetweenTheTwoPoints(current_coordi.x, aim_coordi.x, current_coordi.y, aim_coordi.y));
+			KeyAccessbility = !isThereWallBetweenTheTwoPoints(current_coordi.x, aim_coordi.x, current_coordi.y, aim_coordi.y);
+			return (KeyAccessbility);
 		}else {
-			return false; 
+			KeyAccessbility = false;
+			return KeyAccessbility; 
 		}
 	}
 	
@@ -421,13 +465,19 @@ public class MyAIController extends CarController{
 		return false; 
 	}
 	
-	public void movePointToPoint(Coordinate aim_coordi, Coordinate current_coordi) {
+	public void movePointToPoint(Coordinate aim_coordi, Coordinate current_coordi,HashMap<Coordinate, MapTile> currentView) {
 		WorldSpatial.Direction orientation = getOrientation();
 		if ((aim_coordi.x == current_coordi.x) && (aim_coordi.y == current_coordi.y)) {
-			MapTile tile = map.get(aim_coordi);
-			TrapTile trap = (TrapTile)tile;
-			LavaTrap lava = (LavaTrap)trap;
-			lava.setKey(0);
+			FoundKeys.add(aim_coordi);
+			if (checkWallAhead(getOrientation(), currentView)) {
+				if(checkFollowingWall(getOrientation(),currentView)) {
+					turnRight();
+				}else if(checkRightWall(getOrientation(), currentView)) {
+					turnLeft();
+				}else {
+					turnRight();
+				}
+			}
 			CurrentState = State.Exploring;
 		}
 		
@@ -446,7 +496,9 @@ public class MyAIController extends CarController{
 				case SOUTH: turnLeft();break;
 			}
 		}else {
+			System.out.println("X axis equals");
 			// when aim_coordi.x == current_coordi.x
+			
 			if (aim_coordi.y > current_coordi.y) {
 				switch(orientation) {
 					case EAST: turnLeft(); break;
@@ -457,13 +509,146 @@ public class MyAIController extends CarController{
 			}else if (aim_coordi.y < current_coordi.y){ 
 				switch(orientation) {
 					case EAST: turnRight(); break;
-					case WEST: turnLeft(); break;
+					case WEST: turnLeft(); System.out.println("turn left");break;
 					case NORTH: break;
 					case SOUTH: break;
 				}
-			}else {
-				CurrentState=State.Exploring;
 			}
 		}
 	}
+	
+	
+	public boolean toNewPlace() {
+		Coordinate currentPosition = new Coordinate(getPosition());
+		WorldSpatial.Direction direction = this.getOrientation();
+		
+		MapTile rightTile, leftTile, forwardTile;
+		Coordinate rightCoord=null, leftCoord=null, forwardCoord=null;
+		
+		switch (direction) {
+		case NORTH:
+			rightCoord = new Coordinate(currentPosition.x+5, currentPosition.y);
+			leftCoord = new Coordinate(currentPosition.x-5, currentPosition.y);
+			forwardCoord = new Coordinate(currentPosition.x, currentPosition.y+5);
+			break;
+		case EAST:
+			rightCoord = new Coordinate(currentPosition.x, currentPosition.y-5);
+			leftCoord = new Coordinate(currentPosition.x, currentPosition.y+5);
+			forwardCoord = new Coordinate(currentPosition.x+5, currentPosition.y);
+			break;
+		case SOUTH:
+			rightCoord = new Coordinate(currentPosition.x-5, currentPosition.y);
+			leftCoord = new Coordinate(currentPosition.x+5, currentPosition.y);
+			forwardCoord = new Coordinate(currentPosition.x, currentPosition.y-5);
+			break;
+		case WEST:
+			rightCoord = new Coordinate(currentPosition.x, currentPosition.y+5);
+			leftCoord = new Coordinate(currentPosition.x, currentPosition.y-5);
+			forwardCoord = new Coordinate(currentPosition.x-5, currentPosition.y);
+			break;
+		default:
+			break;
+		}
+		
+		
+		rightTile = map.get(rightCoord);
+		leftTile = map.get(leftCoord);
+		forwardTile = map.get(forwardCoord);
+
+		
+		if (rightTile != null && rightTile.isType(MapTile.Type.ROAD)) {
+			if (detected.get(rightCoord) == false) {
+				if (!detectObstacle(currentPosition, rightCoord)) {
+					turnRight();
+					return true;
+				}
+			}
+		}
+		else if (leftTile != null && leftTile.isType(MapTile.Type.ROAD)) {
+			if (detected.get(leftCoord) == false) {
+				if (!detectObstacle(currentPosition, leftCoord)) {
+					turnLeft();
+					return true;
+				}
+			}
+		}
+		else if (forwardTile != null && forwardTile.isType(MapTile.Type.ROAD)) {
+			if (detected.get(forwardCoord) == false) {
+				if (!detectObstacle(currentPosition, forwardCoord)) {
+					// go straight
+					return false;
+				}
+			}
+		}
+		return false;
+		
+	}
+	
+	
+	public boolean detectObstacle(Coordinate start, Coordinate finish) {
+		int xDiff = finish.x - start.x;
+		int yDiff = finish.y - start.y;
+		
+		MapTile tile;
+		
+		// finish.x < start.x
+		if (xDiff < 0) {
+			for (int i = -1; i > xDiff; i--) {
+				tile = map.get(new Coordinate(start.x + i, start.y));
+				if (tile.isType(MapTile.Type.WALL)) {
+					return true;
+				}
+				else if (tile.isType(MapTile.Type.TRAP) && ((TrapTile)tile).getTrap().equals("mud")) {			
+					return true;
+				}
+			}
+			return false;
+		}
+		
+		// finish.x > start.x
+		if (xDiff > 0) {
+			for (int i = 1; i < xDiff; i++) {
+				tile = map.get(new Coordinate(start.x + i, start.y));
+				if (tile.isType(MapTile.Type.WALL)) {
+					return true;
+				}
+				else if (tile.isType(MapTile.Type.TRAP) && ((TrapTile)tile).getTrap().equals("mud")) {			
+					return true;
+				}
+			}
+			return false;
+		}
+		
+		// finish.y < start.y
+		if (yDiff < 0) { 
+			for (int i = -1; i > yDiff; i--) {
+				tile = map.get(new Coordinate(start.x, start.y + i));
+				if (tile.isType(MapTile.Type.WALL)) {
+					return true;
+				}
+				else if (tile.isType(MapTile.Type.TRAP) && ((TrapTile)tile).getTrap().equals("mud")) {			
+					return true;
+				}
+			}
+			return false;
+		}
+		
+		// finish.y > start.y
+		if (yDiff > 0) {
+			for (int i = 1; i < yDiff; i++) {
+				tile = map.get(new Coordinate(start.x, start.y + i));
+				if (tile.isType(MapTile.Type.WALL)) {
+					return true;
+				}
+				else if (tile.isType(MapTile.Type.TRAP) && ((TrapTile)tile).getTrap().equals("mud")) {			
+					return true;
+				}
+			}
+			return false;
+		}
+		
+		// default
+		return false;
+	}
+	
 }
