@@ -62,7 +62,19 @@ public class MyAIController extends CarController{
 		case WayOut: wayOut(); break; 
 		case DeadEnd: leaveDeadEnd(currentView);break;
 		}
+		if (CurrentState != State.DeadEnd && CurrentState!=State.Recovery) {
+			if (checkWallAhead(getOrientation(), currentView)) {
+				if(checkFollowingWall(getOrientation(),currentView)) {
+					turnRight();
+				}else if(checkRightWall(getOrientation(), currentView)) {
+					turnLeft();
+				}else {
+					turnRight();
+				}
+			}
+		}
 		
+		System.out.print("\n");
 	}
 	
 	public void exploring(HashMap<Coordinate, MapTile> currentView) {
@@ -77,42 +89,27 @@ public class MyAIController extends CarController{
 			applyBrake();
 		}else if(findKey(currentView)!=null) {
 			CurrentState = State.PickingUpKey;
-			if (checkWallAhead(getOrientation(), currentView)) {
-				if(checkFollowingWall(getOrientation(),currentView)) {
-					turnRight();
-				}else if(checkRightWall(getOrientation(), currentView)) {
-					turnLeft();
-				}else {
-					turnRight();
-				}
-			}
+			
 		}else{
 			CurrentState = State.Exploring;
-			if (checkWallAhead(getOrientation(), currentView)) {
-				if(checkFollowingWall(getOrientation(),currentView)) {
-					turnRight();
-				}else if(checkRightWall(getOrientation(), currentView)) {
-					turnLeft();
-				}else {
-					turnRight();
-				}
-			}
-		
+			
 		}
 	}
 	
 	public void pickingupKey(HashMap<Coordinate, MapTile> currentView) {
 		Coordinate currentPosition = new Coordinate(getPosition());
 		Coordinate key = findKey(currentView);
-		System.out.println("key is null "+key+"\n");
+		System.out.println("key is null "+key);
 		//System.out.println("can i move there "+canIMoveThere(currentPosition,key));
 		if (key == null) {
 			CurrentState = State.Exploring;
 		}else {
-			if(!canIMoveThere(currentPosition,key) || key==null) {
+			System.out.println("can i move there "+canIMoveThere(currentPosition,key));
+			if(!canIMoveThere(currentPosition,key)) {
 				CurrentState = State.Exploring;
 			}else {
-				movePointToPoint(currentPosition, key);
+				movePointToPoint(key, currentPosition);
+				CurrentState = State.Exploring;
 			}
 		}
 		
@@ -380,7 +377,7 @@ public class MyAIController extends CarController{
 				if (trap.getTrap().equals("lava")) {
 					LavaTrap lava = (LavaTrap) trap;
 					if (lava.getKey() > 0) {
-						System.out.println(x);
+						//System.out.println(x);
 						System.out.println(getPosition());
 						return x;
 					}
@@ -425,6 +422,48 @@ public class MyAIController extends CarController{
 	}
 	
 	public void movePointToPoint(Coordinate aim_coordi, Coordinate current_coordi) {
+		WorldSpatial.Direction orientation = getOrientation();
+		if ((aim_coordi.x == current_coordi.x) && (aim_coordi.y == current_coordi.y)) {
+			MapTile tile = map.get(aim_coordi);
+			TrapTile trap = (TrapTile)tile;
+			LavaTrap lava = (LavaTrap)trap;
+			lava.setKey(0);
+			CurrentState = State.Exploring;
+		}
 		
+		if (aim_coordi.x < current_coordi.x) {
+			switch(orientation) {
+				case EAST: break;
+				case WEST: break;
+				case NORTH: turnLeft(); break;
+				case SOUTH: turnRight();break;
+			}
+		}else if(aim_coordi.x > current_coordi.x) {
+			switch(orientation) {
+				case EAST: break;
+				case WEST: break;
+				case NORTH: turnRight(); break;
+				case SOUTH: turnLeft();break;
+			}
+		}else {
+			// when aim_coordi.x == current_coordi.x
+			if (aim_coordi.y > current_coordi.y) {
+				switch(orientation) {
+					case EAST: turnLeft(); break;
+					case WEST: turnRight(); break;
+					case NORTH: break;
+					case SOUTH: break;
+				}
+			}else if (aim_coordi.y < current_coordi.y){ 
+				switch(orientation) {
+					case EAST: turnRight(); break;
+					case WEST: turnLeft(); break;
+					case NORTH: break;
+					case SOUTH: break;
+				}
+			}else {
+				CurrentState=State.Exploring;
+			}
+		}
 	}
 }
