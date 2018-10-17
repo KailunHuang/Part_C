@@ -21,7 +21,7 @@ public class MyAIController extends CarController{
 	HashMap<Coordinate, Boolean> detected = new HashMap<Coordinate, Boolean>();
 	HashMap<Coordinate, Boolean> Track = new HashMap<Coordinate, Boolean>();
 	ArrayList<Coordinate> FoundKeys = new ArrayList<Coordinate>();
-	
+	ArrayList<Coordinate> TravedRoads = new ArrayList<Coordinate>();
 	
 	private boolean KeyAccessbility = false;
 	public enum State {Exploring, PickingUpKey, Recovery, WayOut, DeadEnd,OnGrass};
@@ -53,6 +53,9 @@ public class MyAIController extends CarController{
 //		System.out.println(checkDeadEnd(getOrientation(), currentView));
 //		System.out.println(this.getPosition());
 //		System.out.println(this.getHealth());
+		System.out.println(this.CountUndected());
+		//System.out.println(TravedRoads);
+		
 		
 		for (Coordinate x:currentView.keySet()) {
 			if (detected.get(x)!=null) {
@@ -72,7 +75,7 @@ public class MyAIController extends CarController{
 		case OnGrass: moveOnGrass(currentView);break;
 		}	
 		
-		
+		TravedRoads.add(new Coordinate(getPosition()));
 		System.out.print("\n");
 	}
 	
@@ -99,15 +102,12 @@ public class MyAIController extends CarController{
 				CurrentState = State.Recovery;
 			}
 		}
-		
 		else if(isOnGrass(currentPosition)) {
 			CurrentState = State.OnGrass;
 		}else if (this.getKeys().size() == this.numKeys()) {
 			CurrentState = State.WayOut;
-		}
-		else{
-			simpleMove(currentView, currentPosition);
-			
+		}else{
+			simpleMove(currentView, currentPosition);	
 		}
 		
 	}
@@ -119,59 +119,62 @@ public class MyAIController extends CarController{
 			applyForwardAcceleration();   // Tough luck if there's a wall in the way
 		}
 		
-		if (checkWallAhead(getOrientation(), currentView)) {
-			if(checkFollowingWall(getOrientation(),currentView)) {
-				turnRight();
-			}else if(checkRightWall(getOrientation(), currentView)) {
-				turnLeft();
-			}else {
-				turnRight();
-			}
+		
+		//boolean newPlace = toNewPlace();
+		System.out.println("repeating "+checkRepeatedRoute(currentPosition));
+		if (checkRepeatedRoute(currentPosition)) {
+			turnIfRepeated(orientation, currentView, currentPosition);
 		}else {
-			if (!checkFollowingWall(orientation,currentView) && !checkRightWall(orientation, currentView)){
-				//Coordinate x = findCloestWall(currentPosition, currentView);
-				switch(orientation) {
-					case EAST: 
-						if (checkNorthWest(currentView)) {
-							turnLeft();
-						}else if (!checkNorthWest(currentView) && !checkNorthEast(currentView) &&
-								!checkSouthEast(currentView) && checkSouthWest(currentView)) {
-							turnRight();
-						}
-						break;
-					case WEST:
-						if (checkSouthEast(currentView)) {
-							turnLeft();
-						}else if (!checkNorthWest(currentView) && checkNorthEast(currentView) &&
-								!checkSouthEast(currentView) && !checkSouthWest(currentView)) {
-							turnRight();
-						}
-						break;
-					case NORTH:
-						if (checkSouthWest(currentView)) {
-							turnLeft();
-						}else if (!checkNorthWest(currentView) && !checkNorthEast(currentView) &&
-								checkSouthEast(currentView) && !checkSouthWest(currentView)) {
-							turnRight();
-						}
-						break;
-					case SOUTH:
-						if (checkNorthEast(currentView)) {
-							turnLeft();
-						}else if (checkNorthWest(currentView) && !checkNorthEast(currentView) &&
-								!checkSouthEast(currentView) && !checkSouthWest(currentView)) {
-							turnRight();
-						}
-						break;
-				}		
-				
-//				if (!checkNorthWest(currentView) && !checkNorthEast(currentView) &&
-//						!checkSouthEast(currentView) && !checkSouthWest(currentView)) {
-//					movePointToPoint(x, currentPosition, currentView, "wall");
-//				}		
-				
-			}	
-		}	
+			if (checkWallAhead(getOrientation(), currentView)) {
+				if(checkFollowingWall(getOrientation(),currentView)) {
+					turnRight();
+				}else if(checkRightWall(getOrientation(), currentView)) {
+					turnLeft();
+				}else {
+					turnRight();
+				}
+			}else {
+				if (!checkFollowingWall(orientation,currentView) && !checkRightWall(orientation, currentView)){
+					//Coordinate x = findCloestWall(currentPosition, currentView);
+					switch(orientation) {
+						case EAST: 
+							if (checkNorthWest(currentView)) {
+								turnLeft();
+							}else if (!checkNorthWest(currentView) && !checkNorthEast(currentView) &&
+									!checkSouthEast(currentView) && checkSouthWest(currentView)) {
+								turnRight();
+							}
+							break;
+						case WEST:
+							if (checkSouthEast(currentView)) {
+								turnLeft();
+							}else if (!checkNorthWest(currentView) && checkNorthEast(currentView) &&
+									!checkSouthEast(currentView) && !checkSouthWest(currentView)) {
+								turnRight();
+							}
+							break;
+						case NORTH:
+							if (checkSouthWest(currentView)) {
+								turnLeft();
+							}else if (!checkNorthWest(currentView) && !checkNorthEast(currentView) &&
+									checkSouthEast(currentView) && !checkSouthWest(currentView)) {
+								turnRight();
+							}
+							break;
+						case SOUTH:
+							if (checkNorthEast(currentView)) {
+								turnLeft();
+							}else if (checkNorthWest(currentView) && !checkNorthEast(currentView) &&
+									!checkSouthEast(currentView) && !checkSouthWest(currentView)) {
+								turnRight();
+							}
+							break;
+					}		
+					
+				}	
+			}
+		}
+		
 	}
 	
 	
@@ -183,11 +186,17 @@ public class MyAIController extends CarController{
 		if (key == null) {
 			turnIfWallAhead(getOrientation(),currentView);
 			CurrentState = State.Exploring;
+			if (getKeys().size() == numKeys()) {
+				CurrentState = State.WayOut;
+			}
 		}else {
 			System.out.println("can i move there "+canIMoveThere(currentPosition,key,currentView));
 			if(!canIMoveThere(currentPosition,key,currentView)) {
 				turnIfWallAhead(getOrientation(),currentView);
 				CurrentState = State.Exploring;
+				if (getKeys().size() == numKeys()) {
+					CurrentState = State.WayOut;
+				}
 			}else {
 				movePointToPoint(key, currentPosition,currentView, "key");
 			}
@@ -209,14 +218,23 @@ public class MyAIController extends CarController{
 		if (health == null) {
 			simpleMove(currentView,currentPosition);
 			CurrentState = State.Exploring;
+			if (getKeys().size() == numKeys()) {
+				CurrentState = State.WayOut;
+			}
 		}
 		else {
 			if (!shouldIGetTheHealth(getOrientation(), health, currentPosition, currentView)) {
 				simpleMove(currentView,currentPosition);
 				CurrentState = State.Exploring;
+				if (getKeys().size() == numKeys()) {
+					CurrentState = State.WayOut;
+				}
 			}else if(getHealth() == 100){
 				simpleMove(currentView,currentPosition);
 				CurrentState = State.Exploring;
+				if (getKeys().size() == numKeys()) {
+					CurrentState = State.WayOut;
+				}
 			}else {
 				movePointToPoint(health, currentPosition, currentView, "health");
 			}
@@ -225,6 +243,28 @@ public class MyAIController extends CarController{
 	}
 	
 	public void wayOut(HashMap<Coordinate, MapTile> currentView) {
+		Coordinate currentPosition = new Coordinate(getPosition());
+		if (checkDeadEnd(getOrientation(), currentView)) {
+			CurrentState = State.DeadEnd;
+			applyBrake();
+		}else if ((findHealth(currentPosition, currentView)!=null) && (getHealth() < 100)) {
+			health = findHealth(currentPosition, currentView);
+			//System.out.println("should I get the health "+shouldIGetTheHealth(getOrientation(), health, currentPosition, currentView));
+			if(!shouldIGetTheHealth(getOrientation(), health, currentPosition, currentView)){
+				exiting(currentView);
+			}else {
+				CurrentState = State.Recovery;
+			}
+		}else if(isOnGrass(currentPosition)) {
+			CurrentState = State.OnGrass;
+		}else{
+			exiting(currentView);
+			
+		}
+		//turnIfWallAhead(getOrientation(), currentView);
+	}
+	
+	public void exiting(HashMap<Coordinate, MapTile> currentView) {
 		WorldSpatial.Direction orientation = getOrientation();
 		
 		if(getSpeed() < CAR_MAX_SPEED && CurrentState ==State.Exploring){       // Need speed to turn and progress toward the exit
@@ -298,6 +338,9 @@ public class MyAIController extends CarController{
 			}
 		}else {
 			CurrentState = State.Exploring;
+			if (getKeys().size() == numKeys()) {
+				CurrentState = State.WayOut;
+			}
 		}
 		
 	}
@@ -949,15 +992,15 @@ public class MyAIController extends CarController{
 		}
 	}
 	
-	public Coordinate findCloestWall(Coordinate currentPosition, HashMap<Coordinate, MapTile> currentView) {
-		for (Coordinate x: currentView.keySet()) {
-			MapTile tile = currentView.get(x);
-			if(currentView.get(x).isType(MapTile.Type.WALL)) {
-				return x;
-			}
-		}
-		return null;
-	}
+//	public Coordinate findCloestWall(Coordinate currentPosition, HashMap<Coordinate, MapTile> currentView) {
+//		for (Coordinate x: currentView.keySet()) {
+//			MapTile tile = currentView.get(x);
+//			if(currentView.get(x).isType(MapTile.Type.WALL)) {
+//				return x;
+//			}
+//		}
+//		return null;
+//	}
 	
 	/** Check when exiting */
 	/**
@@ -1150,15 +1193,74 @@ public class MyAIController extends CarController{
 		
 		// default
 		return false;
-	}
+	}	
 	
-	public Coordinate findDarkPlace() {
+	public int CountUndected() {
+		int count = 0;
 		for (Coordinate x : map.keySet()) {
 			if (detected.get(x)==false) {
-				return x;
+				count++;
 			}
 		}
-		return null;
+		return count;
+	}
+	
+	public boolean checkRepeatedRoute(Coordinate Position) {
+		for (Coordinate x : TravedRoads) {
+			MapTile tile = map.get(x);
+			if (tile.isType(MapTile.Type.WALL)) {
+				return true;
+			}
+			if (x.x==Position.x && x.y==Position.y) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public void turnIfRepeated(WorldSpatial.Direction orientation, HashMap<Coordinate, MapTile> currentView,Coordinate currentPosition) {
+		switch(orientation) {
+		case EAST:
+			if (!checkRepeatedRoute(new Coordinate(currentPosition.x+1, currentPosition.y))) {
+				turnIfWallAhead(orientation, currentView);
+			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x, currentPosition.y+1))) {
+				turnLeft();
+			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x, currentPosition.y-1))) {
+				turnRight();
+			}else {
+				turnIfWallAhead(orientation, currentView);
+			}
+		case WEST:
+			if (!checkRepeatedRoute(new Coordinate(currentPosition.x-1, currentPosition.y))) {
+				//simpleMove(currentView, currentPosition);
+			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x, currentPosition.y+1))) {
+				turnRight();
+			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x, currentPosition.y-1))) {
+				turnLeft();
+			}else {
+				turnIfWallAhead(orientation, currentView);
+			}
+		case SOUTH:
+			if (!checkRepeatedRoute(new Coordinate(currentPosition.x, currentPosition.y-1))) {
+				turnIfWallAhead(orientation, currentView);
+			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x+1, currentPosition.y))) {
+				turnLeft();
+			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x-1, currentPosition.y))) {
+				turnRight();
+			}else {
+				turnIfWallAhead(orientation, currentView);
+			}
+		case NORTH:
+			if (!checkRepeatedRoute(new Coordinate(currentPosition.x, currentPosition.y+1))) {
+				turnIfWallAhead(orientation, currentView);
+			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x+1, currentPosition.y))) {
+				turnRight();
+			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x-1, currentPosition.y))) {
+				turnLeft();
+			}else {
+				turnIfWallAhead(orientation, currentView);
+			}
+		}
 	}
 	
 }
