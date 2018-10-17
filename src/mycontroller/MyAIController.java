@@ -466,4 +466,143 @@ public class MyAIController extends CarController{
 			}
 		}
 	}
+	
+	
+	
+	
+	
+	
+	
+	// Added on 16th Oct
+	public void kailun(HashMap<Coordinate, MapTile> currentView) {
+		Coordinate currentPosition = new Coordinate(getPosition());
+		WorldSpatial.Direction direction = this.getOrientation();
+		
+		MapTile rightTile, leftTile, forwardTile;
+		Coordinate rightCoord=null, leftCoord=null, forwardCoord=null;
+		
+		switch (direction) {
+		case NORTH:
+			rightCoord = new Coordinate(currentPosition.x+5, currentPosition.y);
+			leftCoord = new Coordinate(currentPosition.x-5, currentPosition.y);
+			forwardCoord = new Coordinate(currentPosition.x, currentPosition.y+5);
+			break;
+		case EAST:
+			rightCoord = new Coordinate(currentPosition.x, currentPosition.y-5);
+			leftCoord = new Coordinate(currentPosition.x, currentPosition.y+5);
+			forwardCoord = new Coordinate(currentPosition.x+5, currentPosition.y);
+			break;
+		case SOUTH:
+			rightCoord = new Coordinate(currentPosition.x-5, currentPosition.y);
+			leftCoord = new Coordinate(currentPosition.x+5, currentPosition.y);
+			forwardCoord = new Coordinate(currentPosition.x, currentPosition.y-5);
+			break;
+		case WEST:
+			rightCoord = new Coordinate(currentPosition.x, currentPosition.y+5);
+			leftCoord = new Coordinate(currentPosition.x, currentPosition.y-5);
+			forwardCoord = new Coordinate(currentPosition.x-5, currentPosition.y);
+			break;
+		default:
+			break;
+		}
+		
+		
+		rightTile = map.get(rightCoord);
+		leftTile = map.get(leftCoord);
+		forwardTile = map.get(forwardCoord);
+
+		
+		if (rightTile != null && rightTile.isType(MapTile.Type.ROAD)) {
+			if (detected.get(rightCoord) == false) {
+				if (!detectObstacle(currentPosition, rightCoord)) {
+					turnRight();
+				}
+			}
+		}
+		else if (leftTile != null && leftTile.isType(MapTile.Type.ROAD)) {
+			if (detected.get(leftCoord) == false) {
+				if (!detectObstacle(currentPosition, leftCoord)) {
+					turnLeft();
+				}
+			}
+		}
+		else if (forwardTile != null && forwardTile.isType(MapTile.Type.ROAD)) {
+			if (detected.get(forwardCoord) == false) {
+				if (!detectObstacle(currentPosition, forwardCoord)) {
+					// go straight
+				}
+			}
+		}
+	
+		
+	}
+	
+	
+	public boolean detectObstacle(Coordinate start, Coordinate finish) {
+		int xDiff = finish.x - start.x;
+		int yDiff = finish.y - start.y;
+		
+		MapTile tile;
+		
+		// finish.x < start.x
+		if (xDiff < 0) {
+			for (int i = -1; i > xDiff; i--) {
+				tile = map.get(new Coordinate(start.x + i, start.y));
+				if (tile.isType(MapTile.Type.WALL)) {
+					return true;
+				}
+				else if (tile.isType(MapTile.Type.TRAP) && ((TrapTile)tile).getTrap().equals("mud")) {			
+					return true;
+				}
+			}
+			return false;
+		}
+		
+		// finish.x > start.x
+		if (xDiff > 0) {
+			for (int i = 1; i < xDiff; i++) {
+				tile = map.get(new Coordinate(start.x + i, start.y));
+				if (tile.isType(MapTile.Type.WALL)) {
+					return true;
+				}
+				else if (tile.isType(MapTile.Type.TRAP) && ((TrapTile)tile).getTrap().equals("mud")) {			
+					return true;
+				}
+			}
+			return false;
+		}
+		
+		// finish.y < start.y
+		if (yDiff < 0) { 
+			for (int i = -1; i > yDiff; i--) {
+				tile = map.get(new Coordinate(start.x, start.y + i));
+				if (tile.isType(MapTile.Type.WALL)) {
+					return true;
+				}
+				else if (tile.isType(MapTile.Type.TRAP) && ((TrapTile)tile).getTrap().equals("mud")) {			
+					return true;
+				}
+			}
+			return false;
+		}
+		
+		// finish.y > start.y
+		if (yDiff > 0) {
+			for (int i = 1; i < yDiff; i++) {
+				tile = map.get(new Coordinate(start.x, start.y + i));
+				if (tile.isType(MapTile.Type.WALL)) {
+					return true;
+				}
+				else if (tile.isType(MapTile.Type.TRAP) && ((TrapTile)tile).getTrap().equals("mud")) {			
+					return true;
+				}
+			}
+			return false;
+		}
+		
+		// default
+		return false;
+	}
+	
+	
 }
