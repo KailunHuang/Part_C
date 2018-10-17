@@ -91,7 +91,8 @@ public class MyAIController extends CarController{
 		}
 		else if ((findHealth(currentPosition, currentView)!=null) && (getHealth() < 100)) {
 			Coordinate health = findHealth(currentPosition, currentView);
-			if(!canIMoveThere(currentPosition,health,currentView)) {
+			//System.out.println("should I get the health "+shouldIGetTheHealth(getOrientation(), health, currentPosition, currentView));
+			if(!shouldIGetTheHealth(getOrientation(), health, currentPosition, currentView)){
 				simpleMove(currentView, currentPosition);
 			}else {
 				CurrentState = State.Recovery;
@@ -197,11 +198,12 @@ public class MyAIController extends CarController{
 	public void recover(HashMap<Coordinate, MapTile> currentView) {
 		Coordinate currentPosition = new Coordinate(getPosition());
 		Coordinate health = findHealth(currentPosition, currentView);
+		System.out.println("health coordi "+health);
 		if (health == null) {
 			turnIfWallAhead(getOrientation(),currentView);
 			CurrentState = State.Exploring;
 		}else {
-			if (!canIMoveThere(currentPosition, health, currentView)) {
+			if (!shouldIGetTheHealth(getOrientation(), health, currentPosition, currentView)) {
 				turnIfWallAhead(getOrientation(),currentView);
 				CurrentState = State.Exploring;
 			}else {
@@ -379,7 +381,7 @@ public class MyAIController extends CarController{
 		}
 		return false;
 	}
-	
+
 	
 	public boolean checkWest(HashMap<Coordinate,MapTile> currentView,int wallSensitivity){
 		// Check tiles to my left
@@ -600,6 +602,36 @@ public class MyAIController extends CarController{
 		}
 	}
 	
+	public boolean shouldIGetTheHealth(WorldSpatial.Direction orientation, Coordinate aim_coordi, Coordinate current_coordi,HashMap<Coordinate, MapTile> currentView) {
+		
+		switch(orientation) {
+		case EAST:
+			if (aim_coordi.x < current_coordi.x) {
+				return false;
+			}else {
+				return canIMoveThere(aim_coordi, current_coordi, currentView);
+			}
+		case WEST:
+			if (aim_coordi.x > current_coordi.x) {
+				return false;
+			}else {
+				return canIMoveThere(aim_coordi, current_coordi, currentView);
+			}
+		case NORTH:
+			if (aim_coordi.y < current_coordi.y) {
+				return false;
+			}else {
+				return canIMoveThere(aim_coordi, current_coordi, currentView);
+			}
+		case SOUTH:
+			if (aim_coordi.y > current_coordi.y) {
+				return false;
+			}else {
+				return canIMoveThere(aim_coordi, current_coordi, currentView);
+			}
+		}
+		return false;
+	}
 	public boolean isThereWallBetweenTheTwoPoints(int left, int right, int up, int down) {
 		for (int a = left; a <= right; a++) {
 			for (int b = down; b <= up; b++) {
@@ -634,6 +666,7 @@ public class MyAIController extends CarController{
 					}
 				}
 			}else if(state.equals("health")) {
+				System.out.println("checkWallAhead "+checkWallAhead(getOrientation(), currentView));
 				if (checkWallAhead(getOrientation(), currentView)) {
 					if(checkFollowingWall(getOrientation(),currentView)) {
 						turnRight();
@@ -688,17 +721,33 @@ public class MyAIController extends CarController{
 	}
 	
 	public Coordinate findHealth(Coordinate currentPosition, HashMap<Coordinate, MapTile> currentView) {
+		ArrayList<Coordinate> list = new ArrayList<Coordinate>();
+		ArrayList<Integer> distances = new ArrayList<Integer>(); 
 		for (Coordinate x: currentView.keySet()) {
 			MapTile tile = currentView.get(x);
 			if(currentView.get(x).isType(MapTile.Type.TRAP)) {
 				TrapTile trap = (TrapTile)tile;
 				if (trap.getTrap().equals("health")) {
-					System.out.println("health at "+x);
-					return x;
+					list.add(x);
+					int  distance = (Math.abs(x.x-currentPosition.x)+Math.abs(x.y-currentPosition.y));
+					distances.add(distance);
 				}
 			}
 		}
-		return null;
+		
+		if (distances.isEmpty()) {
+			return null;
+		}else {
+			int max = 0; 
+			int index = 0; 
+			for (int i = 0; i < distances.size(); i++) {
+				if (distances.get(i)>max) {
+					max = distances.get(i);
+					index = i;
+				}
+			}
+			return list.get(index);
+		}
 	}
 	
 	public boolean isOnGrass(Coordinate currentPosition) {
