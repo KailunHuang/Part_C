@@ -311,13 +311,13 @@ public class MyAIController extends CarController{
 	private boolean checkWallAhead(WorldSpatial.Direction orientation, HashMap<Coordinate, MapTile> currentView){
 		switch(orientation){
 		case EAST:
-			return checkEast(currentView,WALLSENSITIVITY);
+			return checkEastWhenExiting(currentView,WALLSENSITIVITY);
 		case NORTH:
-			return checkNorth(currentView,WALLSENSITIVITY);
+			return checkNorthWhenExiting(currentView,WALLSENSITIVITY);
 		case SOUTH:
-			return checkSouth(currentView,WALLSENSITIVITY);
+			return checkSouthWhenExiting(currentView,WALLSENSITIVITY);
 		case WEST:
-			return checkWest(currentView,WALLSENSITIVITY);
+			return checkWestWhenExiting(currentView,WALLSENSITIVITY);
 		default:
 			return false;
 		}
@@ -334,13 +334,13 @@ public class MyAIController extends CarController{
 		
 		switch(orientation){
 		case EAST:
-			return checkNorth(currentView,WALLSENSITIVITY);
+			return checkNorthWhenExiting(currentView,WALLSENSITIVITY);
 		case NORTH:
-			return checkWest(currentView,WALLSENSITIVITY);
+			return checkWestWhenExiting(currentView,WALLSENSITIVITY);
 		case SOUTH:
-			return checkEast(currentView,WALLSENSITIVITY);
+			return checkEastWhenExiting(currentView,WALLSENSITIVITY);
 		case WEST:
-			return checkSouth(currentView,WALLSENSITIVITY);
+			return checkSouthWhenExiting(currentView,WALLSENSITIVITY);
 		default:
 			return false;
 		}	
@@ -349,13 +349,13 @@ public class MyAIController extends CarController{
 	public boolean checkRightWall(WorldSpatial.Direction orientation, HashMap<Coordinate, MapTile> currentView) {
 		switch(orientation) {
 		case EAST:
-			return checkSouth(currentView,WALLSENSITIVITY);
+			return checkSouthWhenExiting(currentView,WALLSENSITIVITY);
 		case NORTH:
-			return checkEast(currentView,WALLSENSITIVITY);
+			return checkEastWhenExiting(currentView,WALLSENSITIVITY);
 		case SOUTH:
-			return checkWest(currentView,WALLSENSITIVITY);
+			return checkWestWhenExiting(currentView,WALLSENSITIVITY);
 		case WEST:
-			return checkNorth(currentView,WALLSENSITIVITY);
+			return checkNorthWhenExiting(currentView,WALLSENSITIVITY);
 		default:
 			return false;
 		}
