@@ -33,7 +33,7 @@ public class MyAIController extends CarController{
 	private HashMap<Coordinate,Double> HPlosses;// Required HP to go through from all the entry points
 	private HashMap<Coordinate,Stack<Coordinate>> routeThroughLava;// The routes each entry would take to the next area
 	private ArrayList<Coordinate> safeLava;//the route that takes the least HP to pass through lava
-	private enum States {Beginning,Exploring,ExploringGrass,BackTracking,NextArea,ThroughLava,FindKey,GetKey,GetOut};
+	private enum States {Beginning,Exploring,ExploringGrass,BackTracking,NextArea,TurnAround,ThroughLava,FindKey,GetKey,GetOut};
 	private States state;
 
 	public MyAIController(Car car) {
@@ -76,6 +76,13 @@ public class MyAIController extends CarController{
 		MapTile ahead=map.get(ahead(orientation,currentC));
 		MapTile left=map.get(left(orientation,currentC));
 		MapTile right=map.get(right(orientation,currentC));
+		if(currentC.equals(new Coordinate(15,11))) {
+			System.out.println(ahead(orientation,currentC));
+			System.out.println(checkAhead(orientation,currentC));
+			System.out.println(stepped.get(new Coordinate(16,11)));
+		}
+		System.out.println(state+traceBack.toString());
+		System.out.println(currentC.toString()+"  "+orientation);
 		switch (state){
 		case Beginning:
 			if(checkAhead(orientation,currentC)) {
@@ -85,6 +92,7 @@ public class MyAIController extends CarController{
 			}else if(getSpeed()>0) {//can only stay still or move backwards in Beginning state
 				applyBrake();
 			}
+			//resting while ahead is not blocked, then start exploring
 			traceBack.push(new Stack<>());
 			traceBack.peek().push(currentC);
 			if(map.get(currentC) instanceof GrassTrap) {
@@ -99,17 +107,17 @@ public class MyAIController extends CarController{
 				break;
 			}
 			traceBack.peek().push(currentC);
-			if(((ahead.isType(Type.TRAP) && ((TrapTile)ahead).getTrap().equals("lava")) ||
-					(left.isType(Type.TRAP) && ((TrapTile)left).getTrap().equals("lava")) ||
-					(right.isType(Type.TRAP) && ((TrapTile)right).getTrap().equals("lava"))) &&
+			if((ahead instanceof LavaTrap && !safeLava.contains(ahead(orientation,currentC))) ||
+					(left instanceof LavaTrap && !safeLava.contains(left(orientation,currentC))) ||
+					(right instanceof LavaTrap && !safeLava.contains(right(orientation,currentC))) &&
 					!nextToLava.containsKey(currentC)) {
 				HPlosses.put(currentC, null);
 				routeThroughLava.put(currentC, null);
-				if(ahead.isType(Type.TRAP) && ((TrapTile)ahead).getTrap().equals("lava")) {
+				if(ahead instanceof LavaTrap && !safeLava.contains(ahead(orientation,currentC))) {
 					nextToLava.put(currentC, orientation);
-				}else if(left.isType(Type.TRAP) && ((TrapTile)left).getTrap().equals("lava")) {
+				}else if(left instanceof LavaTrap && !safeLava.contains(left(orientation,currentC))) {
 					nextToLava.put(currentC, WorldSpatial.changeDirection(orientation, RelativeDirection.LEFT));
-				}else if(right.isType(Type.TRAP) && ((TrapTile)right).getTrap().equals("lava")) {
+				}else if(right instanceof LavaTrap && !safeLava.contains(right(orientation,currentC))) {
 					nextToLava.put(currentC, WorldSpatial.changeDirection(orientation, RelativeDirection.RIGHT));
 				}
 			}
@@ -193,7 +201,7 @@ public class MyAIController extends CarController{
 				currentTrace=null;
 				applyBrake();
 			}else{
-				towardsNextCoor(orientation,currentC,currentTrace.pop());
+				while(towardsNextCoor(orientation,currentC,currentTrace.pop())==0);
 			}
 			break;
 		case NextArea:
@@ -212,27 +220,47 @@ public class MyAIController extends CarController{
 				if(currentTrace==null) {
 					currentTrace=P2P(currentC,routeThroughLava.get(sortedLeastKey(HPlosses)).peek(),orientation);
 				}
-				if(currentTrace.size()==1){//manually switch to ThroughLava state so that the car is right on the entry point of lava
+				if(currentTrace.size()==1){
 					towardsNextCoor(orientation, currentC, currentTrace.pop());
 					state=States.ThroughLava;
 					currentTrace=routeThroughLava.get(sortedLeastKey(HPlosses));
-					currentTrace.pop();//get rid of the starting point outside of lava
 					//from this point, the chosen way of going through lava is excluded from our maps
 					nextToLava.remove(sortedLeastKey(HPlosses));
 					routeThroughLava.remove(sortedLeastKey(HPlosses));
 					HPlosses.remove(sortedLeastKey(HPlosses));
 				}else if(currentTrace.size()>1) {
-					towardsNextCoor(orientation, currentC, currentTrace.pop());
+					//first decide whether the car is going backward and whether it can turn around without losing HP
+					if(currentTrace.peek().equals(back(orientation,currentC)) &&
+							(map.get(currentC).isType(Type.ROAD) || map.get(currentC) instanceof HealthTrap)){
+						if(left.isType(Type.ROAD) || left instanceof HealthTrap){
+							state=States.TurnAround;
+							turnLeft();
+							break;
+						}else if(right.isType(Type.ROAD) || right instanceof HealthTrap) {
+							state=States.TurnAround;
+							turnRight();
+							break;
+						}
+					}
+					while(towardsNextCoor(orientation, currentC, currentTrace.pop())==0);
 				}
 			}
 			break;
+		case TurnAround:
+			if(getSpeed()>0) {
+				applyBrake();
+			}else {
+				applyForwardAcceleration();
+				state=States.NextArea;
+			}
+			break;
 		case ThroughLava:
+			System.out.println(currentTrace);
+			if(map.get(currentC) instanceof LavaTrap) safeLava.add(currentC);
 			if(currentTrace.size()>1) {
-				towardsNextCoor(orientation,currentC,currentTrace.peek());
-				safeLava.add(currentTrace.pop());
+				while(towardsNextCoor(orientation,currentC,currentTrace.pop())==0);
 			}else {
 				towardsNextCoor(orientation, currentC, currentTrace.peek());
-				safeLava.add(currentTrace.peek());
 				if(map.get(currentTrace.peek()) instanceof GrassTrap) {
 					state=States.ExploringGrass;
 				}else {
@@ -240,7 +268,6 @@ public class MyAIController extends CarController{
 				}
 				//preparing for a new round of exploring
 				traceBack.push(new Stack<>());
-				traceBack.peek().push(currentTrace.peek());
 				currentTrace=null;
 			}
 			break;
@@ -292,10 +319,10 @@ public class MyAIController extends CarController{
 	    if (!current.equals(dest)){
 	        return null;
 	    }
-	    for(Coordinate node = dest; node != null; node = pre.get(node)) {
+	    for(Coordinate node = dest; node != start; node = pre.get(node)) {
 	        route.push(node);
 	    }
-	    route.pop();//get rid of starting point
+	    route.push(start);
 	    return route;
 	}
 
@@ -309,8 +336,8 @@ public class MyAIController extends CarController{
 		HashMap<Coordinate,Direction> ways=new HashMap<>();
 		if(map.get(current) instanceof GrassTrap) {
 			if(!map.get(ahead(orientation,current)).isType(Type.WALL) &&
-					!(map.get(ahead(orientation,current)) instanceof LavaTrap) ||
-							safeLava.contains(ahead(orientation,current))) {
+					(!(map.get(ahead(orientation,current)) instanceof LavaTrap) ||
+							safeLava.contains(ahead(orientation,current)))) {
 				ways.put(ahead(orientation,current), orientation);
 			}
 		}else {
@@ -437,7 +464,7 @@ public class MyAIController extends CarController{
 	    		}
 	    	}
 	    }
-	    HPloss=-LavaHP*(route.size()-2);//the first and last coordinates are outside of lava
+	    HPloss=-LavaHP*(route.size()-2);//the first and last coordinates are outside lava
 	    HPlosses.replace(start, HPloss);
 	    routeThroughLava.replace(start, route);
 	    return true;
@@ -471,27 +498,37 @@ public class MyAIController extends CarController{
 	 * @param currentC
 	 * @param next
 	 */
-	private void towardsNextCoor(Direction orientation, Coordinate currentC, Coordinate next) {
+	private int towardsNextCoor(Direction orientation, Coordinate currentC, Coordinate next) {
 		if(getSpeed()==0){
 			if(back(orientation,currentC).equals(next)) {
 				applyReverseAcceleration();
+				return 1;
 			}else if(ahead(orientation,currentC).equals(next)) {
 				applyForwardAcceleration();
-			}else {
-				System.err.println("tracing failed,currentC:"+currentC.toString()+" next:"+next.toString());
-			}
-		}else {
-			if(ahead(orientation,currentC).equals(next)) {
-				applyForwardAcceleration();//same as do nothing
-			}else if(left(orientation,currentC).equals(next)) {
-				turnLeft();
-			}else if(right(orientation,currentC).equals(next)) {
-				turnRight();
-			}else if(back(orientation,currentC).equals(next)) {
-				applyReverseAcceleration();//same as do nothing
+				return 1;
+			}else if(currentC.equals(next)){
+				return 0;
 			}
 			else {
 				System.err.println("tracing failed,currentC:"+currentC.toString()+" next:"+next.toString());
+				return -1;
+			}
+		}else {
+			if(ahead(orientation,currentC).equals(next)) {
+				return 1; 
+			}else if(left(orientation,currentC).equals(next)) {
+				turnLeft();
+				return 1;
+			}else if(right(orientation,currentC).equals(next)) {
+				turnRight();
+				return 1;
+			}else if(back(orientation,currentC).equals(next)) {
+				return 1;
+			}else if(currentC.equals(next)) {
+				return 0;
+			}else {
+				System.err.println("tracing failed,currentC:"+currentC.toString()+" next:"+next.toString());
+				return -1;
 			}
 		}
 	}
@@ -585,7 +622,7 @@ public class MyAIController extends CarController{
 	private boolean checkAhead(Direction orientation,Coordinate currentC) {
 		Coordinate ahead=ahead(orientation,currentC);
 		if(map.get(ahead).isType(Type.WALL) || 
-				(map.get(ahead).isType(Type.TRAP) && ((TrapTile)map.get(ahead)).getTrap().equals("lava")) || 
+				(map.get(ahead) instanceof LavaTrap) || 
 				stepped.get(ahead)) {
 			return true;
 		}
@@ -594,7 +631,7 @@ public class MyAIController extends CarController{
 	private boolean checkLeft(Direction orientation,Coordinate currentC) {
 		Coordinate left=left(orientation,currentC);
 		if(map.get(left).isType(Type.WALL) || 
-				(map.get(left).isType(Type.TRAP) && ((TrapTile)map.get(left)).getTrap().equals("lava")) || 
+				(map.get(left) instanceof LavaTrap) || 
 				stepped.get(left)) {
 			return true;
 		}
@@ -603,7 +640,7 @@ public class MyAIController extends CarController{
 	private boolean checkRight(Direction orientation,Coordinate currentC) {
 		Coordinate right=right(orientation,currentC);
 		if(map.get(right).isType(Type.WALL) || 
-				(map.get(right).isType(Type.TRAP) && ((TrapTile)map.get(right)).getTrap().equals("lava")) || 
+				(map.get(right) instanceof LavaTrap) || 
 				stepped.get(right)) {
 			return true;
 		}
