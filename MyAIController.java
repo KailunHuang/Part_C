@@ -121,26 +121,34 @@ public class MyAIController extends CarController{
 					nextToLava.put(currentC, WorldSpatial.changeDirection(orientation, RelativeDirection.RIGHT));
 				}
 			}
-			if(ahead.isType(Type.TRAP) &&
-					((TrapTile)ahead).getTrap().equals("grass") &&
-					!stepped.get(ahead(orientation,currentC))) {
-				forkNewTrace(orientation,currentC);
-				state=States.ExploringGrass;
-				break;
-			}else if(left.isType(Type.TRAP) &&
-					((TrapTile)left).getTrap().equals("grass") &&
-					!stepped.get(left(orientation,currentC))) {
-				forkNewTrace(orientation,currentC);
-				turnLeft();
-				state=States.ExploringGrass;
-				break;
-			}else if(right.isType(Type.TRAP) &&
-					((TrapTile)right).getTrap().equals("grass") &&
-					!stepped.get(right(orientation,currentC))) {
-				forkNewTrace(orientation,currentC);
-				turnRight();
-				state=States.ExploringGrass;
-				break;
+			if(!checkAhead(orientation,currentC)) {
+				if(ahead.isType(Type.TRAP) &&
+						((TrapTile)ahead).getTrap().equals("grass") &&
+						!stepped.get(ahead(orientation,currentC))) {
+					forkNewTrace(orientation,currentC);
+					state=States.ExploringGrass;
+					break;
+				}
+			}
+			if(!checkLeft(orientation,currentC)) {
+				if(left.isType(Type.TRAP) &&
+						((TrapTile)left).getTrap().equals("grass") &&
+						!stepped.get(left(orientation,currentC))) {
+					forkNewTrace(orientation,currentC);
+					turnLeft();
+					state=States.ExploringGrass;
+					break;
+				}
+			}
+			if(!checkAhead(orientation,currentC)) {
+				if(right.isType(Type.TRAP) &&
+						((TrapTile)right).getTrap().equals("grass") &&
+						!stepped.get(right(orientation,currentC))) {
+					forkNewTrace(orientation,currentC);
+					turnRight();
+					state=States.ExploringGrass;
+					break;
+				}
 			}
 			if(checkAhead(orientation,currentC) && !checkLeft(orientation,currentC) && !checkRight(orientation,currentC)) {
 				//ahead is blocked while left and right are not
@@ -305,7 +313,7 @@ public class MyAIController extends CarController{
 	        if (current.equals(dest)){
 	            break;
 	        }else{
-	        	HashMap<Coordinate,Direction> possibleWays=possibleWays(current,currentO);
+	        	HashMap<Coordinate,Direction> possibleWays=possibleWays(start,current,currentO);
 	            for(Coordinate node : possibleWays.keySet()){
 	                if(!vis.contains(node)){
 	                    q.add(node);
@@ -332,13 +340,18 @@ public class MyAIController extends CarController{
 	 * @param orientation
 	 * @return
 	 */
-	private HashMap<Coordinate, Direction> possibleWays(Coordinate current, Direction orientation) {
+	private HashMap<Coordinate, Direction> possibleWays(Coordinate start,Coordinate current, Direction orientation) {
 		HashMap<Coordinate,Direction> ways=new HashMap<>();
-		if(map.get(current) instanceof GrassTrap) {
+		if(map.get(current) instanceof GrassTrap || current.equals(start)) {
 			if(!map.get(ahead(orientation,current)).isType(Type.WALL) &&
 					(!(map.get(ahead(orientation,current)) instanceof LavaTrap) ||
 							safeLava.contains(ahead(orientation,current)))) {
 				ways.put(ahead(orientation,current), orientation);
+			}
+			if(!map.get(back(orientation,current)).isType(Type.WALL) &&
+					(!(map.get(back(orientation,current)) instanceof LavaTrap) ||
+							safeLava.contains(back(orientation,current)))) {
+				ways.put(back(orientation,current), orientation);
 			}
 		}else {
 			if(!map.get(ahead(orientation,current)).isType(Type.WALL) &&
@@ -621,6 +634,7 @@ public class MyAIController extends CarController{
 	 */
 	private boolean checkAhead(Direction orientation,Coordinate currentC) {
 		Coordinate ahead=ahead(orientation,currentC);
+		if(!map.keySet().contains(ahead)) return true;
 		if(map.get(ahead).isType(Type.WALL) || 
 				(map.get(ahead) instanceof LavaTrap) || 
 				stepped.get(ahead)) {
@@ -630,6 +644,7 @@ public class MyAIController extends CarController{
 	}
 	private boolean checkLeft(Direction orientation,Coordinate currentC) {
 		Coordinate left=left(orientation,currentC);
+		if(!map.keySet().contains(left)) return true;
 		if(map.get(left).isType(Type.WALL) || 
 				(map.get(left) instanceof LavaTrap) || 
 				stepped.get(left)) {
@@ -639,6 +654,7 @@ public class MyAIController extends CarController{
 	}
 	private boolean checkRight(Direction orientation,Coordinate currentC) {
 		Coordinate right=right(orientation,currentC);
+		if(!map.keySet().contains(right)) return true;
 		if(map.get(right).isType(Type.WALL) || 
 				(map.get(right) instanceof LavaTrap) || 
 				stepped.get(right)) {
