@@ -7,6 +7,9 @@ import java.util.Queue;
 import java.util.Stack;
 
 import controller.CarController;
+import tiles.GrassTrap;
+import tiles.HealthTrap;
+import tiles.LavaTrap;
 import tiles.MapTile;
 import tiles.TrapTile;
 import tiles.MapTile.Type;
@@ -78,13 +81,15 @@ public class MyAIController extends CarController{
 			if(checkAhead(orientation,currentC)) {
 				applyReverseAcceleration();
 				stepped.replace(currentC, Boolean.FALSE);
-			}else if(getSpeed()<0) {
+			}else if(getSpeed()>0) {//can only stay still or move backwards in Beginning state
 				applyBrake();
-			}else {
-				applyForwardAcceleration();
 				traceBack.push(new Stack<>());
 				traceBack.peek().push(currentC);
-				state=States.Exploring;
+				if(map.get(currentC) instanceof GrassTrap) {
+					state=States.ExploringGrass;
+				}else {
+					state=States.Exploring;
+				}
 			}
 			break;
 		case Exploring:
@@ -138,29 +143,16 @@ public class MyAIController extends CarController{
 			}else if(checkAhead(orientation,currentC) && checkRight(orientation,currentC) && !checkLeft(orientation,currentC)) {
 				//ahead and right are blocked while left is not
 				turnLeft();
-			}else if(checkLeft(orientation,ahead(orientation,currentC)) && 
-					checkRight(orientation,ahead(orientation,currentC)) &&
+			}else if(checkLeft(orientation,ahead(orientation,currentC)) &&
 					!checkAhead(orientation,currentC) &&
-					(!checkLeft(orientation,currentC) ||
-							!checkRight(orientation,currentC))) {
-				//entering a one-way while having the option to go left or right
+					!checkLeft(orientation,currentC)) {
+				//choosing from going ahead or left when left-front is blocked
 				forkNewTrace(orientation,currentC);
-			}else if(checkLeft(WorldSpatial.changeDirection(orientation,RelativeDirection.LEFT),left(orientation,currentC)) && 
-					checkRight(WorldSpatial.changeDirection(orientation,RelativeDirection.LEFT),left(orientation,currentC)) &&
-					!checkLeft(orientation,currentC) &&
-					(!checkAhead(orientation,currentC) ||
-							!checkRight(orientation,currentC))) {
-				//has a one-way on the left while having the option to go ahead or right
+			}else if(checkRight(orientation,ahead(orientation,currentC)) &&
+					!checkAhead(orientation,currentC) &&
+					!checkRight(orientation,currentC)) {
+				//choosing from going ahead or right when right-front is blocked
 				forkNewTrace(orientation,currentC);
-				turnLeft();
-			}else if(checkLeft(WorldSpatial.changeDirection(orientation,RelativeDirection.RIGHT),right(orientation,currentC)) && 
-					checkRight(WorldSpatial.changeDirection(orientation,RelativeDirection.RIGHT),right(orientation,currentC)) &&
-					!checkRight(orientation,currentC) &&
-					(!checkLeft(orientation,currentC) ||
-							!checkAhead(orientation,currentC))) {
-				//has a one-way on the right while having the option to go ahead or left
-				forkNewTrace(orientation,currentC);
-				turnRight();
 			}else if(deadend(orientation,currentC)) {
 				//entered a dead-end
 				applyBrake();
@@ -172,6 +164,11 @@ public class MyAIController extends CarController{
 			if(checkAhead(orientation,currentC)) {
 				applyBrake();
 				state=States.BackTracking;
+				if(ahead.isType(Type.TRAP) && ((TrapTile)ahead).getTrap().equals("lava")) {
+					nextToLava.put(currentC, orientation);
+					HPlosses.put(currentC, null);
+					routeThroughLava.put(currentC, null);
+				}
 			}else if(ahead.isType(Type.ROAD)){
 				traceBack.peek().push(currentC);
 				state=States.Exploring;
@@ -195,18 +192,38 @@ public class MyAIController extends CarController{
 				currentTrace=null;
 				applyBrake();
 			}else{
-				Coordinate back=currentTrace.pop();
-				towardsNextCoor(orientation,currentC,back);
+				towardsNextCoor(orientation,currentC,currentTrace.pop());
 			}
 			break;
 		case NextArea:
-			System.out.println(nextToLava);
-//			if(HPlosses.containsValue(null)) {
-//				for(Coordinate c:nextToLava.keySet()) {
-//					double HPloss=0;
-//					traverseTrap(c,nextToLava.get(c),HPloss);
-//				}
-//			}
+			if(HPlosses.containsValue(null)) {
+				for(Coordinate c:nextToLava.keySet()) {
+					if(!traverseLava(c,nextToLava.get(c))) {
+						nextToLava.remove(c);
+						HPlosses.remove(c);
+						routeThroughLava.remove(c);
+					}
+				}
+			}
+			if(nextToLava.isEmpty()) {
+				state=States.FindKey;
+				break;
+			}else {
+				if(currentTrace==null) {
+					currentTrace=P2P(currentC,routeThroughLava.get(sortedLeastKey(HPlosses)).peek(),orientation);
+				}
+				if(currentTrace.size()==1){//manually switch to ThroughLava state so that the car is right on the entry point of lava
+					if(ahead(orientation,currentC).equals(currentTrace.peek())) applyForwardAcceleration();
+					else if(left(orientation,currentC).equals(currentTrace.peek())) turnLeft();
+					else if(left(orientation,currentC).equals(currentTrace.peek())) turnLeft();
+					else System.err.println("tracing failed:next coordinate not next to current one");
+					state=States.ThroughLava;
+					currentTrace=routeThroughLava.get(sortedLeastKey(HPlosses));
+					currentTrace.pop();//get rid of the starting point outside of lava
+				}if(currentTrace.size()>1) {
+					towardsNextCoor(orientation, currentC, currentTrace.pop());
+				}
+			}
 			break;
 		case ThroughLava:
 			break;
@@ -219,6 +236,103 @@ public class MyAIController extends CarController{
 		}
 	}
 	
+	/**
+	 * using BFS to find the shortest route between 2 points
+	 * code adopted from Mr giolekva's answer on https://stackoverflow.com/questions/1579399/shortest-path-fewest-nodes-for-unweighted-graph
+	 * @param start
+	 * @param dest
+	 * @param orientation
+	 * @return a trace of coordinates
+	 */
+	private Stack<Coordinate> P2P(Coordinate start, Coordinate dest, Direction orientation) {
+		ArrayList<Coordinate> vis=new ArrayList<>();
+		HashMap<Coordinate,Coordinate> pre=new HashMap<>();
+		Stack<Coordinate> route = new Stack<>();
+	    Queue<Coordinate> q = new LinkedList<>();
+	    Queue<Direction> orientationQ= new LinkedList<>();
+	    Coordinate current = start;
+	    Direction currentO=orientation;
+	    q.add(current);
+	    orientationQ.add(currentO);
+	    vis.add(current);
+	    while(!q.isEmpty()){
+	        current = q.remove();
+	        currentO=orientationQ.remove();
+	        if (current.equals(dest)){
+	            break;
+	        }else{
+	        	HashMap<Coordinate,Direction> possibleWays=possibleWays(current,currentO);
+	            for(Coordinate node : possibleWays.keySet()){
+	                if(!vis.contains(node)){
+	                    q.add(node);
+	                    orientationQ.add(possibleWays.get(node));
+	                    vis.add(node);
+	                    pre.put(node, current);
+	                }
+	            }
+	        }
+	    }
+	    if (!current.equals(dest)){
+	        return null;
+	    }
+	    for(Coordinate node = dest; node != null; node = pre.get(node)) {
+	        route.push(node);
+	    }
+	    return route;
+	}
+
+	/**
+	 * helper method for P2P, find all the next possible coordinates that can be reached from current
+	 * @param current
+	 * @param orientation
+	 * @return
+	 */
+	private HashMap<Coordinate, Direction> possibleWays(Coordinate current, Direction orientation) {
+		HashMap<Coordinate,Direction> ways=new HashMap<>();
+		if(map.get(current) instanceof GrassTrap) {
+			if(!map.get(ahead(orientation,current)).isType(Type.WALL) &&
+					!(map.get(ahead(orientation,current)) instanceof LavaTrap) ||
+							safeLava.contains(ahead(orientation,current))) {
+				ways.put(ahead(orientation,current), orientation);
+			}
+		}else {
+			if(!map.get(ahead(orientation,current)).isType(Type.WALL) &&
+					!(map.get(ahead(orientation,current)) instanceof LavaTrap) ||
+							safeLava.contains(ahead(orientation,current))) {
+				ways.put(ahead(orientation,current), orientation);
+			}else if(!map.get(left(orientation,current)).isType(Type.WALL) &&
+					!(map.get(left(orientation,current)) instanceof LavaTrap) ||
+					safeLava.contains(left(orientation,current))) {
+				ways.put(left(orientation,current), WorldSpatial.changeDirection(orientation, RelativeDirection.LEFT));
+			}else if(!map.get(right(orientation,current)).isType(Type.WALL) &&
+					!(map.get(right(orientation,current)) instanceof LavaTrap) ||
+					safeLava.contains(right(orientation,current))) {
+				ways.put(right(orientation,current), WorldSpatial.changeDirection(orientation, RelativeDirection.RIGHT));
+			}
+		}
+		return ways;
+	}
+
+	/**
+	 * find the first key in a HashMap<Coordinate,double> that has the least value associated
+	 * @param map
+	 * @return first key with the least value
+	 */
+	private Coordinate sortedLeastKey(HashMap<Coordinate, Double> map) {
+		double lowest=0;
+		Coordinate key=null;
+		for(Coordinate c:map.keySet()) {
+			if(lowest==0) {
+				lowest=(map.get(c));
+				key=c;
+			}else if(map.get(c)<lowest) {
+				lowest=(map.get(c));
+				key=c;
+			}
+		}
+		return key;
+	}
+
 	/**
 	 * fork a new trace in the traceBack stack, this will happen whenever the car makes a turn or enters a grass 
 	 * or entering a one-way during exploring 
@@ -233,62 +347,96 @@ public class MyAIController extends CarController{
 	}
 
 	/**
-	 * Using breadth first search algorithm to find the route from a point, going through a barrier of traps, to a new area
+	 * Using breadth first search algorithm to find the route from a point, going through a barrier of lava, to a new sub area
+	 * if there is no such route, remove this point from the HashMaps.
+	 * code adopted from Mr giolekva's answer on https://stackoverflow.com/questions/1579399/shortest-path-fewest-nodes-for-unweighted-graph
 	 * @param start: starting coordinate, a coordinate next to a trap in the explored area
 	 * @param originalOrientation: the orientation when entering the traps from this point
 	 * @param HPloss: total HPloss after passing through
 	 * @return a stack of coordinates, indicating the route
 	 */
-	public Stack<Coordinate> traverseTrap(Coordinate start,Direction originalOrientation, double HPloss){
-		HashMap<Coordinate,Boolean> vis=new HashMap<>();
+	public boolean traverseLava(Coordinate start,Direction originalOrientation){
+		ArrayList<Coordinate> vis=new ArrayList<>();
 		HashMap<Coordinate,Coordinate> pre=new HashMap<>();
-	    Stack<Coordinate> directions = new Stack<>();
+	    Stack<Coordinate> route = new Stack<>();
 	    Queue<Coordinate> q = new LinkedList<>();
 	    Queue<Direction> orientationQ= new LinkedList<>();
 	    Coordinate current = start;
 	    Direction orientation=originalOrientation;
 	    q.add(current);
 	    orientationQ.add(orientation);
-	    vis.put(current, true);
+	    vis.add(current);
+	    double HPloss=0;
 	    while(!q.isEmpty()){
-	        current = q.remove();
-	        orientation=orientationQ.remove();
+	        current = q.poll();
+	        orientation=orientationQ.poll();
 	        if (detected.get(current) &&
 	        		!stepped.get(current) &&
-	        		map.get(current).isType(Type.ROAD)){
+	        		!map.get(current).isType(Type.WALL) &&
+	        		!(map.get(current) instanceof LavaTrap)){
 	            break;
 	        }else{
-	            for(Coordinate node : possibleWays(current,orientation).keySet()){
+	        	HashMap<Coordinate,Direction> possibleWays=possibleLavaWays(current,orientation);
+	            for(Coordinate node : possibleWays.keySet()){
 	                if(!vis.contains(node)){
 	                    q.add(node);
-	                    vis.put(node, true);
-	                    prev.put(node, current);
+	                    orientationQ.add(possibleWays.get(node));
+	                    vis.add(node);
+	                    pre.put(node, current);
 	                }
 	            }
 	        }
 	    }
-	    if (!current.equals(finish)){
-	        System.out.println("can't reach destination");
+	    if (!(detected.get(current) &&
+        		!stepped.get(current) &&
+        		!map.get(current).isType(Type.WALL) &&
+        		!(map.get(current) instanceof LavaTrap))){
+	        return false;
 	    }
-	    for(Node node = finish; node != null; node = prev.get(node)) {
-	        directions.add(node);
+	    int lowest=0;
+	    for(Coordinate c:pre.keySet()) {
+	    	Stack<Coordinate> temp=new Stack<>();
+	    	if(detected.get(c) &&
+	        		!stepped.get(c) &&
+	        		!map.get(c).isType(Type.WALL) &&
+	        		!(map.get(c) instanceof LavaTrap)) {
+	    		for(Coordinate node = c; node != null; node = pre.get(node)) {
+	    	        temp.push(node);
+	    	    }
+	    		if(lowest==0) {
+	    			lowest=temp.size();
+	    			route=temp;
+	    		}else if(lowest>temp.size()) {
+	    			lowest=temp.size();
+	    			route=temp;
+	    		}
+	    	}
 	    }
-	    directions.reverse();
-	    return directions;
+	    HPloss=LavaHP*(route.size()-2);//the first and last coordinates are outside of lava
+	    HPlosses.replace(start, HPloss);
+	    routeThroughLava.replace(start, route);
+	    return true;
 	}
 
 	/**
-	 * helper method for traverseTrap()
-	 * @param current:current coordinate when traversing the traps
+	 * helper method for traverseLava(), specially for traversing through lava
+	 * @param current:current coordinate when traversing the lava
 	 * @param orientation:current orientation when arriving at this orientation
-	 * @return all the next possible coordinates reachable from current and the new orientations.
+	 * @return all the next possible coordinates reachable from current and the orientation.
 	 */
-	private HashMap<Coordinate,Direction> possibleWays(Coordinate current,Direction orientation) {
+	private HashMap<Coordinate,Direction> possibleLavaWays(Coordinate current,Direction orientation) {
 		HashMap<Coordinate,Direction> possibleWays=new HashMap<>();
-		if (((TrapTile)map.get(current)).getTrap().equals("grass")){
+		if (!(map.get(current) instanceof LavaTrap)){//at the start, entering lava first
 			possibleWays.put(ahead(orientation,current),orientation);
+		}else {//health or lava
+			if(!map.get(ahead(orientation,current)).isType(Type.WALL) && 
+					!stepped.get(ahead(orientation,current))) possibleWays.put(ahead(orientation,current),orientation);
+			if(!map.get(left(orientation,current)).isType(Type.WALL) && 
+					!stepped.get(left(orientation,current))) possibleWays.put(left(orientation,current),WorldSpatial.changeDirection(orientation, RelativeDirection.LEFT));
+			if(!map.get(right(orientation,current)).isType(Type.WALL) && 
+					!stepped.get(right(orientation,current))) possibleWays.put(right(orientation,current),WorldSpatial.changeDirection(orientation, RelativeDirection.RIGHT));
 		}
-		return null;
+		return possibleWays;
 	}
 
 	private void towardsNextCoor(Direction orientation, Coordinate currentC, Coordinate next) {
@@ -297,14 +445,8 @@ public class MyAIController extends CarController{
 				applyReverseAcceleration();
 			}else if(ahead(orientation,currentC).equals(next)) {
 				applyForwardAcceleration();
-			}
-		}else if(getSpeed()<0) {
-			if(back(orientation,currentC).equals(next)) {
-				applyReverseAcceleration();//same as do nothing
-			}else if(left(orientation,currentC).equals(next)) {
-				turnLeft();
-			}else if(right(orientation,currentC).equals(next)) {
-				turnRight();
+			}else {
+				System.err.println("tracing failed:next coordinate not next to current one");
 			}
 		}else {
 			if(ahead(orientation,currentC).equals(next)) {
@@ -313,6 +455,11 @@ public class MyAIController extends CarController{
 				turnLeft();
 			}else if(right(orientation,currentC).equals(next)) {
 				turnRight();
+			}else if(back(orientation,currentC).equals(next)) {
+				applyReverseAcceleration();//same as do nothing
+			}
+			else {
+				System.err.println("tracing failed:next coordinate not next to current one");
 			}
 		}
 	}
