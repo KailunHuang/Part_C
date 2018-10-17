@@ -119,63 +119,59 @@ public class MyAIController extends CarController{
 			applyForwardAcceleration();   // Tough luck if there's a wall in the way
 		}
 		
-		Coordinate x = findDarkPlace();
-		movePointToPoint(x, currentPosition, currentView, null);
-		turnIfWallAhead(orientation, currentView);
-		
-//		if (checkWallAhead(getOrientation(), currentView)) {
-//			if(checkFollowingWall(getOrientation(),currentView)) {
-//				turnRight();
-//			}else if(checkRightWall(getOrientation(), currentView)) {
-//				turnLeft();
-//			}else {
-//				turnRight();
-//			}
-//		}else {
-//			if (!checkFollowingWall(orientation,currentView) && !checkRightWall(orientation, currentView)){
-////				Coordinate x = findCloestWall(currentPosition, currentView);
-//				switch(orientation) {
-//					case EAST: 
-//						if (checkNorthWest(currentView)) {
-//							turnLeft();
-//						}else if (!checkNorthWest(currentView) && !checkNorthEast(currentView) &&
-//								!checkSouthEast(currentView) && checkSouthWest(currentView)) {
-//							turnRight();
-//						}
-//						break;
-//					case WEST:
-//						if (checkSouthEast(currentView)) {
-//							turnLeft();
-//						}else if (!checkNorthWest(currentView) && checkNorthEast(currentView) &&
-//								!checkSouthEast(currentView) && !checkSouthWest(currentView)) {
-//							turnRight();
-//						}
-//						break;
-//					case NORTH:
-//						if (checkSouthWest(currentView)) {
-//							turnLeft();
-//						}else if (!checkNorthWest(currentView) && !checkNorthEast(currentView) &&
-//								checkSouthEast(currentView) && !checkSouthWest(currentView)) {
-//							turnRight();
-//						}
-//						break;
-//					case SOUTH:
-//						if (checkNorthEast(currentView)) {
-//							turnLeft();
-//						}else if (checkNorthWest(currentView) && !checkNorthEast(currentView) &&
-//								!checkSouthEast(currentView) && !checkSouthWest(currentView)) {
-//							turnRight();
-//						}
-//						break;
-//				}
+		if (checkWallAhead(getOrientation(), currentView)) {
+			if(checkFollowingWall(getOrientation(),currentView)) {
+				turnRight();
+			}else if(checkRightWall(getOrientation(), currentView)) {
+				turnLeft();
+			}else {
+				turnRight();
+			}
+		}else {
+			if (!checkFollowingWall(orientation,currentView) && !checkRightWall(orientation, currentView)){
+				//Coordinate x = findCloestWall(currentPosition, currentView);
+				switch(orientation) {
+					case EAST: 
+						if (checkNorthWest(currentView)) {
+							turnLeft();
+						}else if (!checkNorthWest(currentView) && !checkNorthEast(currentView) &&
+								!checkSouthEast(currentView) && checkSouthWest(currentView)) {
+							turnRight();
+						}
+						break;
+					case WEST:
+						if (checkSouthEast(currentView)) {
+							turnLeft();
+						}else if (!checkNorthWest(currentView) && checkNorthEast(currentView) &&
+								!checkSouthEast(currentView) && !checkSouthWest(currentView)) {
+							turnRight();
+						}
+						break;
+					case NORTH:
+						if (checkSouthWest(currentView)) {
+							turnLeft();
+						}else if (!checkNorthWest(currentView) && !checkNorthEast(currentView) &&
+								checkSouthEast(currentView) && !checkSouthWest(currentView)) {
+							turnRight();
+						}
+						break;
+					case SOUTH:
+						if (checkNorthEast(currentView)) {
+							turnLeft();
+						}else if (checkNorthWest(currentView) && !checkNorthEast(currentView) &&
+								!checkSouthEast(currentView) && !checkSouthWest(currentView)) {
+							turnRight();
+						}
+						break;
+				}		
 				
 //				if (!checkNorthWest(currentView) && !checkNorthEast(currentView) &&
 //						!checkSouthEast(currentView) && !checkSouthWest(currentView)) {
 //					movePointToPoint(x, currentPosition, currentView, "wall");
-//				}
+//				}		
 				
-//			}	
-//		}	
+			}	
+		}	
 	}
 	
 	
