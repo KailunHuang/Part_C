@@ -25,6 +25,7 @@ public class MyAIController extends CarController{
 	
 	private boolean KeyAccessbility = false;
 	public enum State {Exploring, PickingUpKey, Recovery, WayOut, DeadEnd,OnGrass};
+	private Coordinate health = new Coordinate(0,0);
 	
 	private boolean isFollowingWall = false; // This is set to true when the car starts sticking to a wall.
 	
@@ -65,7 +66,7 @@ public class MyAIController extends CarController{
 		switch (CurrentState) {
 		case Exploring: exploring(currentView); break;
 		case PickingUpKey: pickingupKey(currentView); break;
-		case Recovery:recover(currentView); break;
+		case Recovery:recover(health, currentView); break;
 		case WayOut: wayOut(); break; 
 		case DeadEnd: leaveDeadEnd(currentView);break;
 		case OnGrass: moveOnGrass(currentView);break;
@@ -90,7 +91,8 @@ public class MyAIController extends CarController{
 			}
 		}
 		else if ((findHealth(currentPosition, currentView)!=null) && (getHealth() < 100)) {
-			Coordinate health = findHealth(currentPosition, currentView);
+			health = findHealth(currentPosition, currentView);
+			
 			//System.out.println("should I get the health "+shouldIGetTheHealth(getOrientation(), health, currentPosition, currentView));
 			if(!shouldIGetTheHealth(getOrientation(), health, currentPosition, currentView)){
 				simpleMove(currentView, currentPosition);
@@ -195,9 +197,9 @@ public class MyAIController extends CarController{
 		
 	}
 	
-	public void recover(HashMap<Coordinate, MapTile> currentView) {
+	public void recover(Coordinate health, HashMap<Coordinate, MapTile> currentView) {
 		Coordinate currentPosition = new Coordinate(getPosition());
-		Coordinate health = findHealth(currentPosition, currentView);
+
 		System.out.println("health coordi "+health);
 		if (health == null) {
 			turnIfWallAhead(getOrientation(),currentView);
@@ -206,9 +208,10 @@ public class MyAIController extends CarController{
 			if (!shouldIGetTheHealth(getOrientation(), health, currentPosition, currentView)) {
 				turnIfWallAhead(getOrientation(),currentView);
 				CurrentState = State.Exploring;
+			}else if(){
+				
 			}else {
 				movePointToPoint(health, currentPosition, currentView, "health");
-				
 			}
 		}
 		
