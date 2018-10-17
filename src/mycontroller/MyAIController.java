@@ -90,16 +90,17 @@ public class MyAIController extends CarController{
 				CurrentState = State.PickingUpKey;
 			}
 		}
-		else if ((findHealth(currentPosition, currentView)!=null) && (getHealth() < 100)) {
-			health = findHealth(currentPosition, currentView);
-			
-			//System.out.println("should I get the health "+shouldIGetTheHealth(getOrientation(), health, currentPosition, currentView));
-			if(!shouldIGetTheHealth(getOrientation(), health, currentPosition, currentView)){
-				simpleMove(currentView, currentPosition);
-			}else {
-				CurrentState = State.Recovery;
-			}
-		}
+//		else if ((findHealth(currentPosition, currentView)!=null) && (getHealth() < 100)) {
+//			health = findHealth(currentPosition, currentView);
+//			
+//			//System.out.println("should I get the health "+shouldIGetTheHealth(getOrientation(), health, currentPosition, currentView));
+//			if(!shouldIGetTheHealth(getOrientation(), health, currentPosition, currentView)){
+//				simpleMove(currentView, currentPosition);
+//			}else {
+//				CurrentState = State.Recovery;
+//			}
+//		}
+		
 		else if(isOnGrass(currentPosition)) {
 			CurrentState = State.OnGrass;
 		}
@@ -208,8 +209,9 @@ public class MyAIController extends CarController{
 			if (!shouldIGetTheHealth(getOrientation(), health, currentPosition, currentView)) {
 				turnIfWallAhead(getOrientation(),currentView);
 				CurrentState = State.Exploring;
-			}else if(){
-				
+			}else if(getHealth() == 100){
+				turnIfWallAhead(getOrientation(),currentView);
+				CurrentState = State.Exploring;
 			}else {
 				movePointToPoint(health, currentPosition, currentView, "health");
 			}
@@ -496,6 +498,141 @@ public class MyAIController extends CarController{
 		return false;
 	}
 	
+	
+	/****************Added on Wednesday******************/
+	
+	public boolean checkEastWhenExiting(HashMap<Coordinate, MapTile> currentView, int wallSensitivity){
+		// Check tiles to my right
+		Coordinate currentPosition = new Coordinate(getPosition());
+		for(int i = 0; i <= wallSensitivity; i++){
+			MapTile tile = currentView.get(new Coordinate(currentPosition.x+i, currentPosition.y));
+			
+			if(tile.isType(MapTile.Type.WALL)){
+				return true;
+			}else if(tile.isType(MapTile.Type.TRAP)) {
+				TrapTile trap = (TrapTile)tile;
+				if (trap.getTrap().equals("mud")) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	
+	public boolean checkWestWhenExiting(HashMap<Coordinate,MapTile> currentView,int wallSensitivity){
+		// Check tiles to my left
+		Coordinate currentPosition = new Coordinate(getPosition());
+		for(int i = 0; i <= wallSensitivity; i++){
+			MapTile tile = currentView.get(new Coordinate(currentPosition.x-i, currentPosition.y));
+			
+			if(tile.isType(MapTile.Type.WALL)){
+				return true;
+			}else if(tile.isType(MapTile.Type.TRAP)) {
+				TrapTile trap = (TrapTile)tile;
+				if (trap.getTrap().equals("mud")) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	
+	public boolean checkNorthWhenExiting(HashMap<Coordinate,MapTile> currentView, int wallSensitivity){
+		// Check tiles to towards the top
+		Coordinate currentPosition = new Coordinate(getPosition());
+		for(int i = 0; i <= wallSensitivity; i++){
+			MapTile tile = currentView.get(new Coordinate(currentPosition.x, currentPosition.y+i));
+			
+			if(tile.isType(MapTile.Type.WALL)){
+				return true;
+			}else if(tile.isType(MapTile.Type.TRAP)) {
+				TrapTile trap = (TrapTile)tile;
+				if (trap.getTrap().equals("mud")) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	
+	public boolean checkSouthWhenExiting(HashMap<Coordinate,MapTile> currentView, int wallSensitivity){
+		// Check tiles towards the bottom
+		Coordinate currentPosition = new Coordinate(getPosition());
+		for(int i = 0; i <= wallSensitivity; i++){
+			MapTile tile = currentView.get(new Coordinate(currentPosition.x, currentPosition.y-i));
+			
+			if(tile.isType(MapTile.Type.WALL)){
+				return true;
+			}else if(tile.isType(MapTile.Type.TRAP)) {
+				TrapTile trap = (TrapTile)tile;
+				if (trap.getTrap().equals("mud")) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	
+	public boolean checkNorthWestWhenExiting(HashMap<Coordinate, MapTile> currentView) {
+		Coordinate currentPosition = new Coordinate(getPosition());
+		MapTile tile = currentView.get(new Coordinate(currentPosition.x-1, currentPosition.y+1));
+		if(tile.isType(MapTile.Type.WALL)){
+			return true;
+		}else if(tile.isType(MapTile.Type.TRAP)) {
+			TrapTile trap = (TrapTile)tile;
+			if (trap.getTrap().equals("mud")) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean checkNorthEastWhenExiting(HashMap<Coordinate, MapTile> currentView) {
+		Coordinate currentPosition = new Coordinate(getPosition());
+		MapTile tile = currentView.get(new Coordinate(currentPosition.x+1, currentPosition.y+1));
+		if(tile.isType(MapTile.Type.WALL)){
+			return true;
+		}else if(tile.isType(MapTile.Type.TRAP)) {
+			TrapTile trap = (TrapTile)tile;
+			if (trap.getTrap().equals("mud")) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean checkSouthWestWhenExiting(HashMap<Coordinate, MapTile> currentView) {
+		Coordinate currentPosition = new Coordinate(getPosition());
+		MapTile tile = currentView.get(new Coordinate(currentPosition.x-1, currentPosition.y-1));
+		if(tile.isType(MapTile.Type.WALL)){
+			return true;
+		}else if(tile.isType(MapTile.Type.TRAP)) {
+			TrapTile trap = (TrapTile)tile;
+			if (trap.getTrap().equals("mud")) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean checkSouthEastWhenExiting(HashMap<Coordinate, MapTile> currentView) {
+		Coordinate currentPosition = new Coordinate(getPosition());
+		MapTile tile = currentView.get(new Coordinate(currentPosition.x+1, currentPosition.y-1));
+		if(tile.isType(MapTile.Type.WALL)){
+			return true;
+		}else if(tile.isType(MapTile.Type.TRAP)) {
+			TrapTile trap = (TrapTile)tile;
+			if (trap.getTrap().equals("mud")) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	
+	
+	
 	public boolean checkDeadEnd(WorldSpatial.Direction orientation, HashMap<Coordinate, MapTile> currentView) {
 		//Coordinate currentPosition = new Coordinate(getPosition());
 		switch (orientation) {
@@ -671,15 +808,7 @@ public class MyAIController extends CarController{
 			}else if(state.equals("health")) {
 				System.out.println("checkWallAhead "+checkWallAhead(getOrientation(), currentView));
 				if (checkWallAhead(getOrientation(), currentView)) {
-					if(checkFollowingWall(getOrientation(),currentView)) {
-						turnRight();
-					}else if(checkRightWall(getOrientation(), currentView)) {
-						turnLeft();
-					}else {
-						turnRight();
-					}
-				}else {
-					turnLeft();
+					this.turnIfWallAhead(orientation, currentView);
 				}
 				applyBrake();
 			}
