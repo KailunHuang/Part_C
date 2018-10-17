@@ -103,6 +103,8 @@ public class MyAIController extends CarController{
 		
 		else if(isOnGrass(currentPosition)) {
 			CurrentState = State.OnGrass;
+		}else if (this.getKeys().size() == this.numKeys()) {
+			CurrentState = State.WayOut;
 		}
 		else{
 			simpleMove(currentView, currentPosition);
@@ -519,7 +521,6 @@ public class MyAIController extends CarController{
 		return false;
 	}
 
-	
 	public boolean checkWestWhenExiting(HashMap<Coordinate,MapTile> currentView,int wallSensitivity){
 		// Check tiles to my left
 		Coordinate currentPosition = new Coordinate(getPosition());
