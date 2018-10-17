@@ -67,7 +67,7 @@ public class MyAIController extends CarController{
 		case Exploring: exploring(currentView); break;
 		case PickingUpKey: pickingupKey(currentView); break;
 		case Recovery:recover(health, currentView); break;
-		case WayOut: wayOut(); break; 
+		case WayOut: wayOut(currentView); break; 
 		case DeadEnd: leaveDeadEnd(currentView);break;
 		case OnGrass: moveOnGrass(currentView);break;
 		}	
@@ -224,8 +224,60 @@ public class MyAIController extends CarController{
 		
 	}
 	
-	public void wayOut() {
+	public void wayOut(HashMap<Coordinate, MapTile> currentView) {
+		WorldSpatial.Direction orientation = getOrientation();
 		
+		if(getSpeed() < CAR_MAX_SPEED && CurrentState ==State.Exploring){       // Need speed to turn and progress toward the exit
+			applyForwardAcceleration();   // Tough luck if there's a wall in the way
+		}
+		
+		if (checkWallAheadWhenExiting(getOrientation(), currentView)) {
+			if(checkFollowingWallWhenExiting(getOrientation(),currentView)) {
+				turnRight();
+			}else if(checkRightWallWhenExiting(getOrientation(), currentView)) {
+				turnLeft();
+			}else {
+				turnRight();
+			}
+		}else {
+			if (!checkFollowingWallWhenExiting(orientation,currentView) && !checkRightWallWhenExiting(orientation, currentView)){
+				//Coordinate x = findCloestWall(currentPosition, currentView);
+				switch(orientation) {
+					case EAST: 
+						if (checkNorthWestWhenExiting(currentView)) {
+							turnLeft();
+						}else if (!checkNorthWestWhenExiting(currentView) && !checkNorthEastWhenExiting(currentView) &&
+								!checkSouthEastWhenExiting(currentView) && checkSouthWestWhenExiting(currentView)) {
+							turnRight();
+						}
+						break;
+					case WEST:
+						if (checkSouthEastWhenExiting(currentView)) {
+							turnLeft();
+						}else if (!checkNorthWestWhenExiting(currentView) && checkNorthEastWhenExiting(currentView) &&
+								!checkSouthEastWhenExiting(currentView) && !checkSouthWestWhenExiting(currentView)) {
+							turnRight();
+						}
+						break;
+					case NORTH:
+						if (checkSouthWestWhenExiting(currentView)) {
+							turnLeft();
+						}else if (!checkNorthWestWhenExiting(currentView) && !checkNorthEastWhenExiting(currentView) &&
+								checkSouthEastWhenExiting(currentView) && !checkSouthWestWhenExiting(currentView)) {
+							turnRight();
+						}
+						break;
+					case SOUTH:
+						if (checkNorthEastWhenExiting(currentView)) {
+							turnLeft();
+						}else if (checkNorthWestWhenExiting(currentView) && !checkNorthEastWhenExiting(currentView) &&
+								!checkSouthEastWhenExiting(currentView) && !checkSouthWestWhenExiting(currentView)) {
+							turnRight();
+						}
+						break;
+				}	
+			}
+		}
 	}
 	
 	public void moveOnGrass(HashMap<Coordinate, MapTile> currentView) {
@@ -905,6 +957,66 @@ public class MyAIController extends CarController{
 			}
 		}
 		return null;
+	}
+	
+	/** Check when exiting */
+	/**
+	 * Check if you have a wall in front of you!
+	 * @param orientation the orientation we are in based on WorldSpatial
+	 * @param currentView what the car can currently see
+	 * @return
+	 */
+	private boolean checkWallAheadWhenExiting(WorldSpatial.Direction orientation, HashMap<Coordinate, MapTile> currentView){
+		switch(orientation){
+		case EAST:
+			return checkEastWhenExiting(currentView,WALLSENSITIVITY);
+		case NORTH:
+			return checkNorthWhenExiting(currentView,WALLSENSITIVITY);
+		case SOUTH:
+			return checkSouthWhenExiting(currentView,WALLSENSITIVITY);
+		case WEST:
+			return checkWestWhenExiting(currentView,WALLSENSITIVITY);
+		default:
+			return false;
+		}
+	}
+	
+	/**
+	 * Check if the wall is on your left hand side given your orientation
+	 * @param orientation
+	 * @param currentView
+	 * @return
+	 */
+	//it also called check left wall
+	private boolean checkFollowingWallWhenExiting(WorldSpatial.Direction orientation, HashMap<Coordinate, MapTile> currentView) {
+		
+		switch(orientation){
+		case EAST:
+			return checkNorthWhenExiting(currentView,WALLSENSITIVITY);
+		case NORTH:
+			return checkWestWhenExiting(currentView,WALLSENSITIVITY);
+		case SOUTH:
+			return checkEastWhenExiting(currentView,WALLSENSITIVITY);
+		case WEST:
+			return checkSouthWhenExiting(currentView,WALLSENSITIVITY);
+		default:
+			return false;
+		}	
+	}
+	
+	public boolean checkRightWallWhenExiting(WorldSpatial.Direction orientation, HashMap<Coordinate, MapTile> currentView) {
+		switch(orientation) {
+		case EAST:
+			return checkSouthWhenExiting(currentView,WALLSENSITIVITY);
+		case NORTH:
+			return checkEastWhenExiting(currentView,WALLSENSITIVITY);
+		case SOUTH:
+			return checkWestWhenExiting(currentView,WALLSENSITIVITY);
+		case WEST:
+			return checkNorthWhenExiting(currentView,WALLSENSITIVITY);
+		default:
+			return false;
+		}
 	}
 	
 	public boolean toNewPlace() {
