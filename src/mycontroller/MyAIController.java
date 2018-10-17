@@ -90,16 +90,15 @@ public class MyAIController extends CarController{
 				CurrentState = State.PickingUpKey;
 			}
 		}
-//		else if ((findHealth(currentPosition, currentView)!=null) && (getHealth() < 100)) {
-//			health = findHealth(currentPosition, currentView);
-//			
-//			//System.out.println("should I get the health "+shouldIGetTheHealth(getOrientation(), health, currentPosition, currentView));
-//			if(!shouldIGetTheHealth(getOrientation(), health, currentPosition, currentView)){
-//				simpleMove(currentView, currentPosition);
-//			}else {
-//				CurrentState = State.Recovery;
-//			}
-//		}
+		else if ((findHealth(currentPosition, currentView)!=null) && (getHealth() < 100)) {
+			health = findHealth(currentPosition, currentView);
+			//System.out.println("should I get the health "+shouldIGetTheHealth(getOrientation(), health, currentPosition, currentView));
+			if(!shouldIGetTheHealth(getOrientation(), health, currentPosition, currentView)){
+				simpleMove(currentView, currentPosition);
+			}else {
+				CurrentState = State.Recovery;
+			}
+		}
 		
 		else if(isOnGrass(currentPosition)) {
 			CurrentState = State.OnGrass;
@@ -120,63 +119,63 @@ public class MyAIController extends CarController{
 			applyForwardAcceleration();   // Tough luck if there's a wall in the way
 		}
 		
-	
-	
-		if (checkWallAhead(getOrientation(), currentView)) {
-			if(checkFollowingWall(getOrientation(),currentView)) {
-				turnRight();
-			}else if(checkRightWall(getOrientation(), currentView)) {
-				turnLeft();
-			}else {
-				turnRight();
-			}
-		}else {
-			if (!checkFollowingWall(orientation,currentView) && !checkRightWall(orientation, currentView)){
-//				Coordinate x = findCloestWall(currentPosition, currentView);
-				switch(orientation) {
-					case EAST: 
-						if (checkNorthWest(currentView)) {
-							turnLeft();
-						}else if (!checkNorthWest(currentView) && !checkNorthEast(currentView) &&
-								!checkSouthEast(currentView) && checkSouthWest(currentView)) {
-							turnRight();
-						}
-						break;
-					case WEST:
-						if (checkSouthEast(currentView)) {
-							turnLeft();
-						}else if (!checkNorthWest(currentView) && checkNorthEast(currentView) &&
-								!checkSouthEast(currentView) && !checkSouthWest(currentView)) {
-							turnRight();
-						}
-						break;
-					case NORTH:
-						if (checkSouthWest(currentView)) {
-							turnLeft();
-						}else if (!checkNorthWest(currentView) && !checkNorthEast(currentView) &&
-								checkSouthEast(currentView) && !checkSouthWest(currentView)) {
-							turnRight();
-						}
-						break;
-					case SOUTH:
-						if (checkNorthEast(currentView)) {
-							turnLeft();
-						}else if (checkNorthWest(currentView) && !checkNorthEast(currentView) &&
-								!checkSouthEast(currentView) && !checkSouthWest(currentView)) {
-							turnRight();
-						}
-						break;
-				}
+		Coordinate x = findDarkPlace();
+		movePointToPoint(x, currentPosition, currentView, null);
+		turnIfWallAhead(orientation, currentView);
+		
+//		if (checkWallAhead(getOrientation(), currentView)) {
+//			if(checkFollowingWall(getOrientation(),currentView)) {
+//				turnRight();
+//			}else if(checkRightWall(getOrientation(), currentView)) {
+//				turnLeft();
+//			}else {
+//				turnRight();
+//			}
+//		}else {
+//			if (!checkFollowingWall(orientation,currentView) && !checkRightWall(orientation, currentView)){
+////				Coordinate x = findCloestWall(currentPosition, currentView);
+//				switch(orientation) {
+//					case EAST: 
+//						if (checkNorthWest(currentView)) {
+//							turnLeft();
+//						}else if (!checkNorthWest(currentView) && !checkNorthEast(currentView) &&
+//								!checkSouthEast(currentView) && checkSouthWest(currentView)) {
+//							turnRight();
+//						}
+//						break;
+//					case WEST:
+//						if (checkSouthEast(currentView)) {
+//							turnLeft();
+//						}else if (!checkNorthWest(currentView) && checkNorthEast(currentView) &&
+//								!checkSouthEast(currentView) && !checkSouthWest(currentView)) {
+//							turnRight();
+//						}
+//						break;
+//					case NORTH:
+//						if (checkSouthWest(currentView)) {
+//							turnLeft();
+//						}else if (!checkNorthWest(currentView) && !checkNorthEast(currentView) &&
+//								checkSouthEast(currentView) && !checkSouthWest(currentView)) {
+//							turnRight();
+//						}
+//						break;
+//					case SOUTH:
+//						if (checkNorthEast(currentView)) {
+//							turnLeft();
+//						}else if (checkNorthWest(currentView) && !checkNorthEast(currentView) &&
+//								!checkSouthEast(currentView) && !checkSouthWest(currentView)) {
+//							turnRight();
+//						}
+//						break;
+//				}
 				
 //				if (!checkNorthWest(currentView) && !checkNorthEast(currentView) &&
 //						!checkSouthEast(currentView) && !checkSouthWest(currentView)) {
 //					movePointToPoint(x, currentPosition, currentView, "wall");
 //				}
 				
-			}
-			
-		}
-	
+//			}	
+//		}	
 	}
 	
 	
@@ -202,17 +201,26 @@ public class MyAIController extends CarController{
 	
 	public void recover(Coordinate health, HashMap<Coordinate, MapTile> currentView) {
 		Coordinate currentPosition = new Coordinate(getPosition());
-
+		health = findHealth(currentPosition, currentView);
 		System.out.println("health coordi "+health);
+		MapTile tile = map.get(currentPosition);
+		if (tile.isType(MapTile.Type.TRAP)) {
+			TrapTile trap = (TrapTile)tile;
+			if (trap.getTrap().equals("health")) {
+				applyBrake();
+			}
+		}
+		
 		if (health == null) {
-			turnIfWallAhead(getOrientation(),currentView);
+			simpleMove(currentView,currentPosition);
 			CurrentState = State.Exploring;
-		}else {
+		}
+		else {
 			if (!shouldIGetTheHealth(getOrientation(), health, currentPosition, currentView)) {
-				turnIfWallAhead(getOrientation(),currentView);
+				simpleMove(currentView,currentPosition);
 				CurrentState = State.Exploring;
 			}else if(getHealth() == 100){
-				turnIfWallAhead(getOrientation(),currentView);
+				simpleMove(currentView,currentPosition);
 				CurrentState = State.Exploring;
 			}else {
 				movePointToPoint(health, currentPosition, currentView, "health");
@@ -284,16 +292,16 @@ public class MyAIController extends CarController{
 				break;
 			case NORTH:
 				if (checkWest(currentView, WALLSENSITIVITY)) {
-					turnRight();
-				}else {
 					turnLeft();
+				}else {
+					turnRight();
 				}
 				break;
 			case SOUTH: 
 				if (checkWest(currentView, WALLSENSITIVITY)) {
-					turnLeft();
-				}else {
 					turnRight();
+				}else {
+					turnLeft();
 				}
 				break;
 			}
@@ -652,18 +660,17 @@ public class MyAIController extends CarController{
 	
 	//return true if as least three direction of the car is free
 	public boolean checkOutOfDeadEnd(HashMap<Coordinate, MapTile> currentView) {
-		
-		if (!checkSouth(currentView, WALLSENSITIVITY) && !checkNorth(currentView, WALLSENSITIVITY)
-					&& !checkEast(currentView, WALLSENSITIVITY)) {
+		if (!checkSouthWhenExiting(currentView, WALLSENSITIVITY) && !checkNorthWhenExiting(currentView, WALLSENSITIVITY)
+					&& !checkEastWhenExiting(currentView, WALLSENSITIVITY)) {
 			return true;
-		}else if(!checkSouth(currentView, WALLSENSITIVITY) && !checkNorth(currentView, WALLSENSITIVITY)
-		&& !checkWest(currentView, WALLSENSITIVITY)){
+		}else if(!checkSouthWhenExiting(currentView, WALLSENSITIVITY) && !checkNorthWhenExiting(currentView, WALLSENSITIVITY)
+		&& !checkWestWhenExiting(currentView, WALLSENSITIVITY)){
 			return true;
-		}else if (!checkEast(currentView, WALLSENSITIVITY) && !checkNorth(currentView, WALLSENSITIVITY)
-				&& !checkWest(currentView, WALLSENSITIVITY)) {
+		}else if (!checkEastWhenExiting(currentView, WALLSENSITIVITY) && !checkNorthWhenExiting(currentView, WALLSENSITIVITY)
+				&& !checkWestWhenExiting(currentView, WALLSENSITIVITY)) {
 			return true;
-		}else if(!checkSouth(currentView, WALLSENSITIVITY) && !checkEast(currentView, WALLSENSITIVITY)
-					&& !checkWest(currentView, WALLSENSITIVITY)) {
+		}else if(!checkSouthWhenExiting(currentView, WALLSENSITIVITY) && !checkEastWhenExiting(currentView, WALLSENSITIVITY)
+					&& !checkWestWhenExiting(currentView, WALLSENSITIVITY)) {
 			return true;
 		}else {
 			return false;
@@ -672,32 +679,32 @@ public class MyAIController extends CarController{
 	}
 	
 	public boolean eastDeadEnd(HashMap<Coordinate, MapTile> currentView) {
-		if (checkSouth(currentView, WALLSENSITIVITY) && checkNorth(currentView, WALLSENSITIVITY)
-				&& checkEast(currentView, WALLSENSITIVITY)) {
+		if (checkSouthWhenExiting(currentView, WALLSENSITIVITY) && checkNorthWhenExiting(currentView, WALLSENSITIVITY)
+				&& checkEastWhenExiting(currentView, WALLSENSITIVITY)) {
 			return true;
 		}
 		return false;
 	}
 	
 	public boolean westDeadEnd(HashMap<Coordinate, MapTile> currentView) {
-		if (checkSouth(currentView, WALLSENSITIVITY) && checkNorth(currentView, WALLSENSITIVITY)
-				&& checkWest(currentView, WALLSENSITIVITY)) {
+		if (checkSouthWhenExiting(currentView, WALLSENSITIVITY) && checkNorthWhenExiting(currentView, WALLSENSITIVITY)
+				&& checkWestWhenExiting(currentView, WALLSENSITIVITY)) {
 			return true;
 		}
 		return false;
 	}
 	
 	public boolean northDeadEnd(HashMap<Coordinate, MapTile> currentView) {
-		if (checkEast(currentView, WALLSENSITIVITY) && checkNorth(currentView, WALLSENSITIVITY)
-				&& checkWest(currentView, WALLSENSITIVITY)) {
+		if (checkEastWhenExiting(currentView, WALLSENSITIVITY) && checkNorthWhenExiting(currentView, WALLSENSITIVITY)
+				&& checkWestWhenExiting(currentView, WALLSENSITIVITY)) {
 			return true;
 		}
 		return false;
 	}
 	
 	public boolean southDeadEnd(HashMap<Coordinate, MapTile> currentView) {
-		if (checkSouth(currentView, WALLSENSITIVITY) && checkEast(currentView, WALLSENSITIVITY)
-				&& checkWest(currentView, WALLSENSITIVITY)) {
+		if (checkSouthWhenExiting(currentView, WALLSENSITIVITY) && checkEastWhenExiting(currentView, WALLSENSITIVITY)
+				&& checkWestWhenExiting(currentView, WALLSENSITIVITY)) {
 			return true;
 		}
 		return false;
@@ -808,9 +815,7 @@ public class MyAIController extends CarController{
 				}
 			}else if(state.equals("health")) {
 				System.out.println("checkWallAhead "+checkWallAhead(getOrientation(), currentView));
-				if (checkWallAhead(getOrientation(), currentView)) {
-					this.turnIfWallAhead(orientation, currentView);
-				}
+				turnIfWallAhead(orientation, currentView);
 				applyBrake();
 			}
 			
@@ -1038,6 +1043,15 @@ public class MyAIController extends CarController{
 		
 		// default
 		return false;
+	}
+	
+	public Coordinate findDarkPlace() {
+		for (Coordinate x : map.keySet()) {
+			if (detected.get(x)==false) {
+				return x;
+			}
+		}
+		return null;
 	}
 	
 }
