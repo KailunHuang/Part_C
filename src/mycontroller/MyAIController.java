@@ -493,6 +493,141 @@ public class MyAIController extends CarController{
 		return false;
 	}
 	
+	
+	/****************Added on Wednesday******************/
+	
+	public boolean checkEastWhenExiting(HashMap<Coordinate, MapTile> currentView, int wallSensitivity){
+		// Check tiles to my right
+		Coordinate currentPosition = new Coordinate(getPosition());
+		for(int i = 0; i <= wallSensitivity; i++){
+			MapTile tile = currentView.get(new Coordinate(currentPosition.x+i, currentPosition.y));
+			
+			if(tile.isType(MapTile.Type.WALL)){
+				return true;
+			}else if(tile.isType(MapTile.Type.TRAP)) {
+				TrapTile trap = (TrapTile)tile;
+				if (trap.getTrap().equals("mud")) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	
+	public boolean checkWestWhenExiting(HashMap<Coordinate,MapTile> currentView,int wallSensitivity){
+		// Check tiles to my left
+		Coordinate currentPosition = new Coordinate(getPosition());
+		for(int i = 0; i <= wallSensitivity; i++){
+			MapTile tile = currentView.get(new Coordinate(currentPosition.x-i, currentPosition.y));
+			
+			if(tile.isType(MapTile.Type.WALL)){
+				return true;
+			}else if(tile.isType(MapTile.Type.TRAP)) {
+				TrapTile trap = (TrapTile)tile;
+				if (trap.getTrap().equals("mud")) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	
+	public boolean checkNorthWhenExiting(HashMap<Coordinate,MapTile> currentView, int wallSensitivity){
+		// Check tiles to towards the top
+		Coordinate currentPosition = new Coordinate(getPosition());
+		for(int i = 0; i <= wallSensitivity; i++){
+			MapTile tile = currentView.get(new Coordinate(currentPosition.x, currentPosition.y+i));
+			
+			if(tile.isType(MapTile.Type.WALL)){
+				return true;
+			}else if(tile.isType(MapTile.Type.TRAP)) {
+				TrapTile trap = (TrapTile)tile;
+				if (trap.getTrap().equals("mud")) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	
+	public boolean checkSouthWhenExiting(HashMap<Coordinate,MapTile> currentView, int wallSensitivity){
+		// Check tiles towards the bottom
+		Coordinate currentPosition = new Coordinate(getPosition());
+		for(int i = 0; i <= wallSensitivity; i++){
+			MapTile tile = currentView.get(new Coordinate(currentPosition.x, currentPosition.y-i));
+			
+			if(tile.isType(MapTile.Type.WALL)){
+				return true;
+			}else if(tile.isType(MapTile.Type.TRAP)) {
+				TrapTile trap = (TrapTile)tile;
+				if (trap.getTrap().equals("mud")) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	
+	public boolean checkNorthWestWhenExiting(HashMap<Coordinate, MapTile> currentView) {
+		Coordinate currentPosition = new Coordinate(getPosition());
+		MapTile tile = currentView.get(new Coordinate(currentPosition.x-1, currentPosition.y+1));
+		if(tile.isType(MapTile.Type.WALL)){
+			return true;
+		}else if(tile.isType(MapTile.Type.TRAP)) {
+			TrapTile trap = (TrapTile)tile;
+			if (trap.getTrap().equals("mud")) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean checkNorthEastWhenExiting(HashMap<Coordinate, MapTile> currentView) {
+		Coordinate currentPosition = new Coordinate(getPosition());
+		MapTile tile = currentView.get(new Coordinate(currentPosition.x+1, currentPosition.y+1));
+		if(tile.isType(MapTile.Type.WALL)){
+			return true;
+		}else if(tile.isType(MapTile.Type.TRAP)) {
+			TrapTile trap = (TrapTile)tile;
+			if (trap.getTrap().equals("mud")) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean checkSouthWestWhenExiting(HashMap<Coordinate, MapTile> currentView) {
+		Coordinate currentPosition = new Coordinate(getPosition());
+		MapTile tile = currentView.get(new Coordinate(currentPosition.x-1, currentPosition.y-1));
+		if(tile.isType(MapTile.Type.WALL)){
+			return true;
+		}else if(tile.isType(MapTile.Type.TRAP)) {
+			TrapTile trap = (TrapTile)tile;
+			if (trap.getTrap().equals("mud")) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean checkSouthEastWhenExiting(HashMap<Coordinate, MapTile> currentView) {
+		Coordinate currentPosition = new Coordinate(getPosition());
+		MapTile tile = currentView.get(new Coordinate(currentPosition.x+1, currentPosition.y-1));
+		if(tile.isType(MapTile.Type.WALL)){
+			return true;
+		}else if(tile.isType(MapTile.Type.TRAP)) {
+			TrapTile trap = (TrapTile)tile;
+			if (trap.getTrap().equals("mud")) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	
+	
+	
 	public boolean checkDeadEnd(WorldSpatial.Direction orientation, HashMap<Coordinate, MapTile> currentView) {
 		//Coordinate currentPosition = new Coordinate(getPosition());
 		switch (orientation) {
