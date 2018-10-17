@@ -197,7 +197,6 @@ public class MyAIController extends CarController{
 	
 	public void recover(Coordinate health, HashMap<Coordinate, MapTile> currentView) {
 		Coordinate currentPosition = new Coordinate(getPosition());
-		health = findHealth(currentPosition, currentView);
 		System.out.println("health coordi "+health);
 		MapTile tile = map.get(currentPosition);
 		if (tile.isType(MapTile.Type.TRAP)) {
