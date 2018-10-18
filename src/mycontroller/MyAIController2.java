@@ -330,7 +330,11 @@ public class MyAIController2 extends CarController{
 				applyBrake();
 			}else {
 				applyForwardAcceleration();
-				state=States.NextArea;
+				if(lastState==States.NextArea) {
+					state=States.NextArea;
+				}else if(lastState==States.FindKey) {
+					state=States.FindKey;
+				}
 				lastState=States.TurnAround;
 			}
 			break;
@@ -385,6 +389,21 @@ public class MyAIController2 extends CarController{
 				lastState=States.FindKey;
 				currentTrace=routeForKey.get(currentKey).get(sortedLeastKey(keyHPlosses.get(currentKey)));
 			}else if(currentTrace.size()>1) {
+				//first decide whether the car is going backward and whether it can turn around without losing HP
+				if(currentTrace.peek().equals(back(orientation,currentC)) &&
+						(map.get(currentC).isType(Type.ROAD) || map.get(currentC) instanceof HealthTrap)){
+					if(left.isType(Type.ROAD) || left instanceof HealthTrap){
+						state=States.TurnAround;
+						lastState=States.FindKey;
+						turnLeft();
+						break;
+					}else if(right.isType(Type.ROAD) || right instanceof HealthTrap) {
+						state=States.TurnAround;
+						lastState=States.FindKey;
+						turnRight();
+						break;
+					}
+				}
 				backFromKey.push(currentC);
 				while(towardsNextCoor(orientation, currentC, currentTrace.pop())==0);
 			}
