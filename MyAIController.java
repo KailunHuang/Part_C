@@ -1,5 +1,18 @@
 package mycontroller;
 
+/**
+ * This code is written by Shizhan Xu, University of Melbourne, on Oct 8th, 2018. Contact: shizhanx@student.unimelb.edu.au
+ * Basic idea:
+ * The map is divided into sub areas, which are areas that gets surrounded by lava and mud and wall, so that car can only
+ * reach another sub area by traversing through lava.
+ * The car basically steps on all the tiles in an sub area, restore health if possible, record all the possible entries of lava,
+ * record all the entries that can see a key in it's view, and all the HealthTraps. Whenever the car has multiple possible ways
+ * to go, a new trace is forked in the traceBack so that the car can return and try the other decisions.
+ * Then the car starts to get all the possible keys in this sub area, restoring health after getting each key if possible.
+ * Once all the keys in one sub area are gotten, the car traverse through lava to get to the next possible sub area and 
+ * restart the process. During this, if at any time the car finds that it has got all the keys, it will check if it has already 
+ * stepped on the exit so that it can be guaranteed to find a path to it, or continue exploring until the exit is found.
+ */
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -28,7 +41,7 @@ public class MyAIController extends CarController{
 	private HashMap<Coordinate,MapTile> map;
 	private HashMap<Coordinate,Boolean> detected;
 	private HashMap<Coordinate,Boolean> stepped;
-	private Stack<Stack<Coordinate>> traceBack;
+	private Stack<Stack<Coordinate>> traceBack;// A stack of traces that leads to the starting point of exploring.
 	private Stack<Coordinate> currentTrace; // A stack of Coordinates which leads from 1 point to another, there can't be 2 same Coordinates
 	private HashMap<Coordinate,Direction> nextToLava;// All the entry points of lava and the direction of entering
 	private HashMap<Coordinate,Double> HPlosses;// Required HP to go through from all the entry points
@@ -39,13 +52,17 @@ public class MyAIController extends CarController{
 	private HashMap<Integer,HashMap<Coordinate,Stack<Coordinate>>> routeForKey;// The routes each entry would take to get a key
 	private Stack<Coordinate> healthPoints;// All the HealthTraps that has been stepped on, in a stack so that the nearest one should be used
 	private double restoreCost;//the HP we need to get to the last HealthTrap 
-	private Stack<Coordinate> backFromKey;
+	private Stack<Coordinate> backFromKey;//the way the car took from the starting point to the key
 	private ArrayList<Coordinate> exit;
-	private int currentKey=0;
+	private int currentKey=0;//the key that the car is currently looking for
 	private enum States {Beginning,Exploring,ExploringGrass,BackTracking,NextArea,TurnAround,ThroughLava,FindKey,GetKey,BackingFromKey,Restoring};
 	private States state;
 	private States lastState;
 
+	/**
+	 * Constructor
+	 * @param car
+	 */
 	public MyAIController(Car car) {
 		super(car);
 		map=getMap();
@@ -90,24 +107,21 @@ public class MyAIController extends CarController{
 		Coordinate currentC=new Coordinate(getPosition());
 		Direction orientation=getOrientation();
 		stepped.replace(currentC, Boolean.TRUE);
+		// Basically the mud trap is the same as wall: don't ever step onto it
 		for(Coordinate c:currentView.keySet()) {
 			if (currentView.get(c) instanceof MudTrap){
 				map.replace(c, new MapTile(Type.WALL));
+			}else {
+				map.replace(c,currentView.get(c));
 			}
-			map.replace(c,currentView.get(c));
 			detected.replace(c, Boolean.TRUE);
 		}
 		MapTile ahead=map.get(ahead(orientation,currentC));
 		MapTile left=map.get(left(orientation,currentC));
 		MapTile right=map.get(right(orientation,currentC));
 		System.out.println(state+"|"+currentC+"|"+orientation+"|"+map.get(currentC).getType());
-		System.out.println(nextToLava);
-		System.out.println(HPlosses);
-		System.out.println(routeThroughLava);
-		System.out.println(detected.get(new Coordinate(17,1)));
-		System.out.println(map.get(new Coordinate(17,1)).getType());
 		switch (state){
-		case Beginning:
+		case Beginning://Starting to explore a sub area. Always start with 0 speed
 			if(checkAhead(orientation,currentC)) {
 				applyReverseAcceleration();
 				stepped.replace(currentC, Boolean.FALSE);
@@ -127,12 +141,13 @@ public class MyAIController extends CarController{
 				state=States.Exploring;
 			}
 			break;
-		case Exploring:
+		case Exploring://Always start with traceBack={{}}, always going forward
 			if(getSpeed()==0) {
 				applyForwardAcceleration();
 				break;
 			}
 			traceBack.peek().push(currentC);
+			//restore health whenever possible
 			if(map.get(currentC) instanceof HealthTrap) {
 				healthPoints.push(currentC);
 				if(getHealth()<MaxHP) {
@@ -141,6 +156,7 @@ public class MyAIController extends CarController{
 					lastState=States.Exploring;
 				}
 			}
+			//add new entry of lava and whether it can see a key or not
 			if((ahead instanceof LavaTrap && !safeLava.contains(ahead(orientation,currentC))) ||
 					(left instanceof LavaTrap && !safeLava.contains(left(orientation,currentC))) ||
 					(right instanceof LavaTrap && !safeLava.contains(right(orientation,currentC))) &&
@@ -158,6 +174,7 @@ public class MyAIController extends CarController{
 					nextToLava.put(currentC, WorldSpatial.changeDirection(orientation, RelativeDirection.RIGHT));
 				}
 			}
+			//grass traps has the highest priority of exploring, fork a new trace before entering
 			if(!checkAhead(orientation,currentC)) {
 				if(ahead.isType(Type.TRAP) &&
 						((TrapTile)ahead).getTrap().equals("grass") &&
@@ -190,6 +207,7 @@ public class MyAIController extends CarController{
 					break;
 				}
 			}
+			//fork a new trace whenever making an decision of which way to go
 			if(checkAhead(orientation,currentC) && !checkLeft(orientation,currentC) && !checkRight(orientation,currentC)) {
 				//ahead is blocked while left and right are not
 				forkNewTrace(orientation,currentC);
@@ -218,7 +236,7 @@ public class MyAIController extends CarController{
 				lastState=States.Exploring;
 			}
 			break;
-		case ExploringGrass:
+		case ExploringGrass://special exploring state for exploring grass traps
 			if(checkAhead(orientation,currentC)) {
 				applyBrake();
 				state=States.BackTracking;
@@ -236,14 +254,14 @@ public class MyAIController extends CarController{
 				traceBack.peek().push(currentC);
 			}
 			break;
-		case BackTracking:
+		case BackTracking://return to the last branch and try other choices. Always going backward
 			if(currentTrace==null && !traceBack.empty()) {
 				currentTrace=traceBack.pop();
 			}else if(currentTrace==null && !traceBack.empty()){
 				System.err.println("empty traceBack plus null currentTrace when back tracking");
 			}
 			if(currentTrace.empty()) {
-				if(traceBack.empty()) {
+				if(traceBack.empty()) {//returned to the starting point
 					state=States.FindKey;
 					lastState=States.BackTracking;
 				}else {
@@ -257,7 +275,8 @@ public class MyAIController extends CarController{
 				while(towardsNextCoor(orientation,currentC,currentTrace.pop())==0);
 			}
 			break;
-		case NextArea:
+		case NextArea://decide and go to the best entry point of lava. Turn around if going backwards.
+			//Every time new possible entries are being added, recalculate the whole thing
 			if(HPlosses.containsValue(null)) {
 				for(Coordinate c:nextToLava.keySet()) {
 					if(!traverseLava(c,nextToLava.get(c))) {
@@ -306,7 +325,7 @@ public class MyAIController extends CarController{
 				}
 			}
 			break;
-		case TurnAround:
+		case TurnAround://Turn from going back to forth, since ThroughLava only goes forth
 			if(getSpeed()>0) {
 				applyBrake();
 			}else {
@@ -315,7 +334,7 @@ public class MyAIController extends CarController{
 				lastState=States.TurnAround;
 			}
 			break;
-		case ThroughLava:
+		case ThroughLava://Going through lava to the new sub area
 			if(getSpeed()==0) {
 				applyForwardAcceleration();
 				break;
@@ -337,7 +356,7 @@ public class MyAIController extends CarController{
 				currentTrace=null;
 			}
 			break;
-		case FindKey:
+		case FindKey://Going to the entry point of lava that can see a key. Similar to NextArea.
 			if(currentTrace==null) {//initialization
 				if(closeToKey.keySet().size()>0) {
 					for(int key:closeToKey.keySet()) {
@@ -359,7 +378,7 @@ public class MyAIController extends CarController{
 					currentKey=canGetKey().get(0);
 					currentTrace=P2P(currentC,routeForKey.get(currentKey).get(sortedLeastKey(keyHPlosses.get(currentKey))).peek(),orientation);
 				}
-			}else if(currentTrace.size()==1){
+			}else if(currentTrace.size()==1){//enter GetKey state without braking.
 				backFromKey.push(currentC);
 				towardsNextCoor(orientation, currentC, currentTrace.pop());
 				state=States.GetKey;
@@ -370,7 +389,7 @@ public class MyAIController extends CarController{
 				while(towardsNextCoor(orientation, currentC, currentTrace.pop())==0);
 			}
 			break;
-		case GetKey:
+		case GetKey://start in motion, after found a key, try find another key or going through lava from here
 			if(HPlosses.containsValue(null)) {
 				for(Coordinate c:nextToLava.keySet()) {
 					if(!traverseLava(c,nextToLava.get(c))) {
@@ -381,6 +400,7 @@ public class MyAIController extends CarController{
 			}
 			backFromKey.push(currentC);
 			if(currentTrace.empty()) {
+				backFromKey.pop();
 				currentTrace=backFromKey;
 				closeToKey.remove(currentKey);
 				keyHPlosses.remove(currentKey);
