@@ -13,6 +13,7 @@ import tiles.LavaTrap;
 import tiles.MapTile;
 import tiles.TrapTile;
 import tiles.MapTile.Type;
+import tiles.MudTrap;
 import utilities.Coordinate;
 import world.Car;
 import world.WorldSpatial;
@@ -52,13 +53,13 @@ public class MyAIController extends CarController{
 		stepped=new HashMap<>();
 		exit=new ArrayList<>();
 		for (Coordinate c:map.keySet()) {
-			if (map.get(c).isType(Type.TRAP)){
+			if (map.get(c).isType(Type.ROAD)){
 				detected.put(c, Boolean.FALSE);
 			}else if(map.get(c).isType(Type.FINISH)){
 				exit.add(c);
-				detected.put(c, Boolean.TRUE);
+				detected.put(c, true);
 			}else {
-				detected.put(c,Boolean.TRUE);
+				detected.put(c, true);
 			}
 			stepped.put(c, Boolean.FALSE);
 		}
@@ -90,18 +91,21 @@ public class MyAIController extends CarController{
 		Direction orientation=getOrientation();
 		stepped.replace(currentC, Boolean.TRUE);
 		for(Coordinate c:currentView.keySet()) {
-			if(currentView.get(c).isType(Type.TRAP)) {
-				map.replace(c,currentView.get(c));
-				if (((TrapTile) map.get(c)).getTrap().equals("mud")){
-					map.replace(c, new MapTile(Type.WALL));
-				}
-				detected.replace(c, Boolean.TRUE);
+			if (currentView.get(c) instanceof MudTrap){
+				map.replace(c, new MapTile(Type.WALL));
 			}
+			map.replace(c,currentView.get(c));
+			detected.replace(c, Boolean.TRUE);
 		}
 		MapTile ahead=map.get(ahead(orientation,currentC));
 		MapTile left=map.get(left(orientation,currentC));
 		MapTile right=map.get(right(orientation,currentC));
-		System.out.println(state);
+		System.out.println(state+"|"+currentC+"|"+orientation+"|"+map.get(currentC).getType());
+		System.out.println(nextToLava);
+		System.out.println(HPlosses);
+		System.out.println(routeThroughLava);
+		System.out.println(detected.get(new Coordinate(17,1)));
+		System.out.println(map.get(new Coordinate(17,1)).getType());
 		switch (state){
 		case Beginning:
 			if(checkAhead(orientation,currentC)) {
@@ -367,21 +371,51 @@ public class MyAIController extends CarController{
 			}
 			break;
 		case GetKey:
+			if(HPlosses.containsValue(null)) {
+				for(Coordinate c:nextToLava.keySet()) {
+					if(!traverseLava(c,nextToLava.get(c))) {
+						HPlosses.replace(c,MaxHP);
+						routeThroughLava.replace(c,new Stack<>());
+					}
+				}
+			}
 			backFromKey.push(currentC);
 			if(currentTrace.empty()) {
 				currentTrace=backFromKey;
-				applyBrake();
 				closeToKey.remove(currentKey);
 				keyHPlosses.remove(currentKey);
 				routeForKey.remove(currentKey);
-				state=States.BackingFromKey;
-				lastState=States.FindKey;
+				if(canGetKey().size()>0) {
+					applyBrake();
+					state=States.BackingFromKey;
+					lastState=States.FindKey;
+				}else {
+					nextToLava.put(back(orientation,currentC), orientation);
+					HPlosses.put(back(orientation,currentC), null);
+					routeThroughLava.put(back(orientation,currentC), null);
+					stepped.replace(currentC, false);
+					if(!traverseLava(back(orientation,currentC),orientation)) {
+						HPlosses.replace(back(orientation,currentC),MaxHP);
+						routeThroughLava.replace(back(orientation,currentC),new Stack<>());
+						applyBrake();
+						state=States.BackingFromKey;
+						lastState=States.FindKey;
+					}else {
+						//get rid of the first coordinate which is behind currentC
+						routeThroughLava.get(back(orientation,currentC)).pop();
+						currentTrace=routeThroughLava.get(back(orientation,currentC));
+						state=States.ThroughLava;
+						lastState=States.GetKey;
+						nextToLava.remove(back(orientation,currentC));
+						routeThroughLava.remove(back(orientation,currentC));
+						HPlosses.remove(back(orientation,currentC));
+					}
+				}
 			}else {
 				while(towardsNextCoor(orientation, currentC, currentTrace.pop())==0);
 			}
 			break;
 		case BackingFromKey:
-			System.out.println(currentTrace);
 			if(currentTrace.empty()) {
 				//has returned to one tile before the entry point of lava, so turn the entry to stepped since it's outside of lava
 				//replace all stepped lava in this state to false for later path finding in NextArea state
@@ -687,11 +721,14 @@ public class MyAIController extends CarController{
 			possibleWays.put(ahead(orientation,current),orientation);
 		}else {
 			if(!map.get(ahead(orientation,current)).isType(Type.WALL) && 
-					!stepped.get(ahead(orientation,current))) possibleWays.put(ahead(orientation,current),orientation);
+					!stepped.get(ahead(orientation,current)) &&
+					detected.get(ahead(orientation,current))) possibleWays.put(ahead(orientation,current),orientation);
 			if(!map.get(left(orientation,current)).isType(Type.WALL) && 
-					!stepped.get(left(orientation,current))) possibleWays.put(left(orientation,current),WorldSpatial.changeDirection(orientation, RelativeDirection.LEFT));
+					!stepped.get(left(orientation,current)) &&
+					detected.get(left(orientation,current))) possibleWays.put(left(orientation,current),WorldSpatial.changeDirection(orientation, RelativeDirection.LEFT));
 			if(!map.get(right(orientation,current)).isType(Type.WALL) && 
-					!stepped.get(right(orientation,current))) possibleWays.put(right(orientation,current),WorldSpatial.changeDirection(orientation, RelativeDirection.RIGHT));
+					!stepped.get(right(orientation,current)) &&
+					detected.get(right(orientation,current))) possibleWays.put(right(orientation,current),WorldSpatial.changeDirection(orientation, RelativeDirection.RIGHT));
 		}
 		return possibleWays;
 	}
