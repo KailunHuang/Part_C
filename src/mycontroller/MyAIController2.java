@@ -508,7 +508,7 @@ public class MyAIController2 extends CarController{
 	}
 	
 	/**
-	 * return the current number of keys that
+	 * return the keys that we can get by now.
 	 * @return
 	 */
 	private ArrayList<Integer> canGetKey() {
@@ -526,6 +526,12 @@ public class MyAIController2 extends CarController{
 		}
 	}
 
+	/**
+	 * add the current point of entering lava to the corresponding HashMap of keys.
+	 * @param canSeeKey: all the keys that can be seen from this point
+	 * @param currentC
+	 * @param orientation
+	 */
 	private void addKey(ArrayList<Integer> canSeeKey, Coordinate currentC, Direction orientation) {
 		for(int key:canSeeKey) {
 			if(closeToKey.keySet().contains(key)) {
@@ -538,6 +544,11 @@ public class MyAIController2 extends CarController{
 		}
 	}
 
+	/**
+	 * return all the keys that are within a currentView
+	 * @param currentView
+	 * @return
+	 */
 	private ArrayList<Integer> canSeeKey(HashMap<Coordinate, MapTile> currentView) {
 		ArrayList<Integer> keys=new ArrayList<>();
 		for(Coordinate c:currentView.keySet()) {
@@ -836,6 +847,12 @@ public class MyAIController2 extends CarController{
 	    return true;
 	}
 	
+	/**
+	 * helper method for FindKey().
+	 * @param current
+	 * @param orientation
+	 * @return
+	 */
 	private HashMap<Coordinate, Direction> possibleKeyWays(Coordinate current, Direction orientation) {
 		HashMap<Coordinate,Direction> possibleWays=new HashMap<>();
 		if (!(map.get(current) instanceof LavaTrap)){//at the start, entering lava first
