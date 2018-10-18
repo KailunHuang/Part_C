@@ -408,7 +408,7 @@ public class MyAIController2 extends CarController{
 				while(towardsNextCoor(orientation, currentC, currentTrace.pop())==0);
 			}
 			break;
-		case GetKey://start in motion, after found a key, try find another key or going through lava from here
+		case GetKey://start in motion, after found a key, try find another key or going through lava from here. Always going forth at the start
 			if(HPlosses.containsValue(null)) {
 				for(Coordinate c:nextToLava.keySet()) {
 					if(!traverseLava(c,nextToLava.get(c))) {
@@ -454,7 +454,7 @@ public class MyAIController2 extends CarController{
 				while(towardsNextCoor(orientation, currentC, currentTrace.pop())==0);
 			}
 			break;
-		case BackingFromKey:
+		case BackingFromKey://getting out of lava to the origin and start a new round of FindKey
 			if(currentTrace.empty()) {
 				//has returned to one tile before the entry point of lava, so turn the entry to stepped since it's outside of lava
 				//replace all stepped lava in this state to false for later path finding in NextArea state
@@ -473,7 +473,7 @@ public class MyAIController2 extends CarController{
 				while(towardsNextCoor(orientation,currentC,currentTrace.pop())==0);
 			}
 			break;
-		case Restoring:
+		case Restoring://restore health whenever possible
 			if(healthPoints.empty() || getHealth()==MaxHP) {
 				if(lastState==States.BackingFromKey) {
 					state=States.FindKey;
@@ -507,6 +507,10 @@ public class MyAIController2 extends CarController{
 		}
 	}
 	
+	/**
+	 * return the current number of keys that
+	 * @return
+	 */
 	private ArrayList<Integer> canGetKey() {
 		ArrayList<Integer> keys=new ArrayList<>();
 		if(closeToKey.keySet().isEmpty()) return keys;
