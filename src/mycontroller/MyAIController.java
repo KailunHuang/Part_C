@@ -1201,6 +1201,8 @@ public class MyAIController extends CarController{
 		return count;
 	}
 	
+	
+	
 	public boolean checkRepeatedRoute(Coordinate Position) {
 		for (Coordinate x : TravedRoads) {
 			MapTile tile = map.get(x);
@@ -1214,49 +1216,54 @@ public class MyAIController extends CarController{
 		return false;
 	}
 	
-	public void turnIfRepeated(WorldSpatial.Direction orientation, HashMap<Coordinate, MapTile> currentView,Coordinate currentPosition) {
-		switch(orientation) {
-		case EAST:
-			if (!checkRepeatedRoute(new Coordinate(currentPosition.x+1, currentPosition.y))) {
-				turnIfWallAhead(orientation, currentView);
-			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x, currentPosition.y+1))) {
-				turnLeft();
-			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x, currentPosition.y-1))) {
-				turnRight();
-			}else {
-				turnIfWallAhead(orientation, currentView);
-			}
-		case WEST:
-			if (!checkRepeatedRoute(new Coordinate(currentPosition.x-1, currentPosition.y))) {
-				//simpleMove(currentView, currentPosition);
-			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x, currentPosition.y+1))) {
-				turnRight();
-			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x, currentPosition.y-1))) {
-				turnLeft();
-			}else {
-				turnIfWallAhead(orientation, currentView);
-			}
-		case SOUTH:
-			if (!checkRepeatedRoute(new Coordinate(currentPosition.x, currentPosition.y-1))) {
-				turnIfWallAhead(orientation, currentView);
-			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x+1, currentPosition.y))) {
-				turnLeft();
-			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x-1, currentPosition.y))) {
-				turnRight();
-			}else {
-				turnIfWallAhead(orientation, currentView);
-			}
-		case NORTH:
-			if (!checkRepeatedRoute(new Coordinate(currentPosition.x, currentPosition.y+1))) {
-				turnIfWallAhead(orientation, currentView);
-			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x+1, currentPosition.y))) {
-				turnRight();
-			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x-1, currentPosition.y))) {
-				turnLeft();
-			}else {
-				turnIfWallAhead(orientation, currentView);
-			}
-		}
+	public Coordinate findUndetected() {
+		
+		return null;
 	}
+	
+//	public void turnIfRepeated(WorldSpatial.Direction orientation, HashMap<Coordinate, MapTile> currentView,Coordinate currentPosition) {
+//		switch(orientation) {
+//		case EAST:
+//			if (!checkRepeatedRoute(new Coordinate(currentPosition.x+1, currentPosition.y))) {
+//				turnIfWallAhead(orientation, currentView);
+//			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x, currentPosition.y+1))) {
+//				turnLeft();
+//			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x, currentPosition.y-1))) {
+//				turnRight();
+//			}else {
+//				turnIfWallAhead(orientation, currentView);
+//			}
+//		case WEST:
+//			if (!checkRepeatedRoute(new Coordinate(currentPosition.x-1, currentPosition.y))) {
+//				//simpleMove(currentView, currentPosition);
+//			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x, currentPosition.y+1))) {
+//				turnRight();
+//			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x, currentPosition.y-1))) {
+//				turnLeft();
+//			}else {
+//				turnIfWallAhead(orientation, currentView);
+//			}
+//		case SOUTH:
+//			if (!checkRepeatedRoute(new Coordinate(currentPosition.x, currentPosition.y-1))) {
+//				turnIfWallAhead(orientation, currentView);
+//			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x+1, currentPosition.y))) {
+//				turnLeft();
+//			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x-1, currentPosition.y))) {
+//				turnRight();
+//			}else {
+//				turnIfWallAhead(orientation, currentView);
+//			}
+//		case NORTH:
+//			if (!checkRepeatedRoute(new Coordinate(currentPosition.x, currentPosition.y+1))) {
+//				turnIfWallAhead(orientation, currentView);
+//			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x+1, currentPosition.y))) {
+//				turnRight();
+//			}else if(!checkRepeatedRoute(new Coordinate(currentPosition.x-1, currentPosition.y))) {
+//				turnLeft();
+//			}else {
+//				turnIfWallAhead(orientation, currentView);
+//			}
+//		}
+//	}
 	
 }
