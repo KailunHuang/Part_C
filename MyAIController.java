@@ -38,10 +38,12 @@ public class MyAIController extends CarController{
 	private HashMap<Integer,HashMap<Coordinate,Stack<Coordinate>>> routeForKey;// The routes each entry would take to get a key
 	private Stack<Coordinate> healthPoints;// All the HealthTraps that has been stepped on, in a stack so that the nearest one should be used
 	private double restoreCost;//the HP we need to get to the last HealthTrap 
+	private Stack<Coordinate> backFromKey;
 	private ArrayList<Coordinate> exit;
 	private int currentKey=0;
-	private enum States {Beginning,Exploring,ExploringGrass,BackTracking,NextArea,TurnAround,ThroughLava,FindKey,GetKey,Restoring};
+	private enum States {Beginning,Exploring,ExploringGrass,BackTracking,NextArea,TurnAround,ThroughLava,FindKey,GetKey,BackingFromKey,Restoring};
 	private States state;
+	private States lastState;
 
 	public MyAIController(Car car) {
 		super(car);
@@ -61,6 +63,7 @@ public class MyAIController extends CarController{
 			stepped.put(c, Boolean.FALSE);
 		}
 		state=States.Beginning;
+		lastState=null;
 		traceBack=new Stack<>();
 		currentTrace=null;
 		nextToLava=new HashMap<>();
@@ -72,6 +75,7 @@ public class MyAIController extends CarController{
 		routeForKey=new HashMap<>();
 		healthPoints=new Stack<>();
 		restoreCost=0;
+		backFromKey=new Stack<>();
 		for(int i=1;i<=numKeys();i++) {
 			closeToKey.put(i, new HashMap<>());
 			keyHPlosses.put(i, new HashMap<>());
@@ -108,8 +112,11 @@ public class MyAIController extends CarController{
 				applyBrake();
 			}
 			//resting while ahead is not blocked, then start exploring
-			traceBack.push(new Stack<>());
-			traceBack.peek().push(currentC);
+			if(lastState==null) {
+				traceBack.push(new Stack<>());
+				traceBack.peek().push(currentC);
+			}
+			lastState=States.Beginning;
 			if(map.get(currentC) instanceof GrassTrap) {
 				state=States.ExploringGrass;
 			}else {
@@ -124,6 +131,11 @@ public class MyAIController extends CarController{
 			traceBack.peek().push(currentC);
 			if(map.get(currentC) instanceof HealthTrap) {
 				healthPoints.push(currentC);
+				if(getHealth()<MaxHP) {
+					applyBrake();
+					state=States.Restoring;
+					lastState=States.Exploring;
+				}
 			}
 			if((ahead instanceof LavaTrap && !safeLava.contains(ahead(orientation,currentC))) ||
 					(left instanceof LavaTrap && !safeLava.contains(left(orientation,currentC))) ||
@@ -148,6 +160,7 @@ public class MyAIController extends CarController{
 						!stepped.get(ahead(orientation,currentC))) {
 					forkNewTrace(orientation,currentC);
 					state=States.ExploringGrass;
+					lastState=States.Exploring;
 					break;
 				}
 			}
@@ -158,6 +171,7 @@ public class MyAIController extends CarController{
 					forkNewTrace(orientation,currentC);
 					turnLeft();
 					state=States.ExploringGrass;
+					lastState=States.Exploring;
 					break;
 				}
 			}
@@ -168,6 +182,7 @@ public class MyAIController extends CarController{
 					forkNewTrace(orientation,currentC);
 					turnRight();
 					state=States.ExploringGrass;
+					lastState=States.Exploring;
 					break;
 				}
 			}
@@ -196,12 +211,14 @@ public class MyAIController extends CarController{
 				applyBrake();
 				traceBack.peek().pop();
 				state=States.BackTracking;
+				lastState=States.Exploring;
 			}
 			break;
 		case ExploringGrass:
 			if(checkAhead(orientation,currentC)) {
 				applyBrake();
 				state=States.BackTracking;
+				lastState=States.ExploringGrass;
 				if(ahead instanceof LavaTrap && !safeLava.contains(ahead(orientation,currentC))) {
 					nextToLava.put(currentC, orientation);
 					HPlosses.put(currentC, null);
@@ -210,6 +227,7 @@ public class MyAIController extends CarController{
 			}else if(ahead.isType(Type.ROAD)){
 				traceBack.peek().push(currentC);
 				state=States.Exploring;
+				lastState=States.ExploringGrass;
 			}else if(ahead.isType(Type.TRAP) && ((TrapTile)ahead).getTrap().equals("grass")) {
 				traceBack.peek().push(currentC);
 			}
@@ -223,9 +241,11 @@ public class MyAIController extends CarController{
 			if(currentTrace.empty()) {
 				if(traceBack.empty()) {
 					state=States.FindKey;
+					lastState=States.BackTracking;
 				}else {
 					stepped.replace(ahead(orientation,currentC),Boolean.FALSE);
 					state=States.Exploring;
+					lastState=States.BackTracking;
 				}
 				currentTrace=null;
 				applyBrake();
@@ -256,6 +276,7 @@ public class MyAIController extends CarController{
 				if(currentTrace.size()==1){
 					towardsNextCoor(orientation, currentC, currentTrace.pop());
 					state=States.ThroughLava;
+					lastState=States.NextArea;
 					currentTrace=routeThroughLava.get(sortedLeastKey(HPlosses));
 					//from this point, the chosen way of going through lava is excluded from our maps
 					nextToLava.remove(sortedLeastKey(HPlosses));
@@ -267,10 +288,12 @@ public class MyAIController extends CarController{
 							(map.get(currentC).isType(Type.ROAD) || map.get(currentC) instanceof HealthTrap)){
 						if(left.isType(Type.ROAD) || left instanceof HealthTrap){
 							state=States.TurnAround;
+							lastState=States.NextArea;
 							turnLeft();
 							break;
 						}else if(right.isType(Type.ROAD) || right instanceof HealthTrap) {
 							state=States.TurnAround;
+							lastState=States.NextArea;
 							turnRight();
 							break;
 						}
@@ -285,6 +308,7 @@ public class MyAIController extends CarController{
 			}else {
 				applyForwardAcceleration();
 				state=States.NextArea;
+				lastState=States.TurnAround;
 			}
 			break;
 		case ThroughLava:
@@ -298,9 +322,11 @@ public class MyAIController extends CarController{
 			}else {
 				towardsNextCoor(orientation, currentC, currentTrace.peek());
 				if(map.get(currentTrace.peek()) instanceof GrassTrap) {
+					lastState=States.ThroughLava;
 					state=States.ExploringGrass;
 				}else {
 					state=States.Exploring;
+					lastState=States.ThroughLava;
 				}
 				//preparing for a new round of exploring
 				traceBack.push(new Stack<>());
@@ -323,35 +349,66 @@ public class MyAIController extends CarController{
 				}
 				if(canGetKey().size()==0) {
 					state=States.NextArea;
+					lastState=States.FindKey;
 					break;
 				}else {
 					currentKey=canGetKey().get(0);
 					currentTrace=P2P(currentC,routeForKey.get(currentKey).get(sortedLeastKey(keyHPlosses.get(currentKey))).peek(),orientation);
 				}
 			}else if(currentTrace.size()==1){
+				backFromKey.push(currentC);
 				towardsNextCoor(orientation, currentC, currentTrace.pop());
 				state=States.GetKey;
+				lastState=States.FindKey;
 				currentTrace=routeForKey.get(currentKey).get(sortedLeastKey(keyHPlosses.get(currentKey)));
 			}else if(currentTrace.size()>1) {
+				backFromKey.push(currentC);
 				while(towardsNextCoor(orientation, currentC, currentTrace.pop())==0);
 			}
 			break;
 		case GetKey:
+			backFromKey.push(currentC);
 			if(currentTrace.empty()) {
-				currentTrace=null;
+				currentTrace=backFromKey;
 				applyBrake();
 				closeToKey.remove(currentKey);
 				keyHPlosses.remove(currentKey);
 				routeForKey.remove(currentKey);
-				state=States.Restoring;
+				state=States.BackingFromKey;
+				lastState=States.FindKey;
 			}else {
-				safeLava.add(currentC);
 				while(towardsNextCoor(orientation, currentC, currentTrace.pop())==0);
+			}
+			break;
+		case BackingFromKey:
+			System.out.println(currentTrace);
+			if(currentTrace.empty()) {
+				//has returned to one tile before the entry point of lava, so turn the entry to stepped since it's outside of lava
+				//replace all stepped lava in this state to false for later path finding in NextArea state
+				for(Coordinate c:backFromKey) {
+					if(map.get(c) instanceof LavaTrap) {
+						stepped.replace(c, false);
+					}
+				}
+				backFromKey.clear();
+				stepped.replace(ahead(orientation,currentC), true);
+				applyBrake();
+				currentTrace=null;
+				state=States.Restoring;
+				lastState=States.BackingFromKey;
+			}else {
+				while(towardsNextCoor(orientation,currentC,currentTrace.pop())==0);
 			}
 			break;
 		case Restoring:
 			if(healthPoints.empty() || getHealth()==MaxHP) {
-				state=States.FindKey;
+				if(lastState==States.BackingFromKey) {
+					state=States.FindKey;
+					lastState=States.Restoring;
+				}else if(lastState==States.Exploring) {
+					state=States.Beginning;
+					lastState=States.Restoring;
+				}
 				break;
 			}
 			if(map.get(currentC) instanceof HealthTrap && getHealth()<MaxHP) {
@@ -368,6 +425,7 @@ public class MyAIController extends CarController{
 			}else{//currentTrace can never be empty since the second if will capture that situation faster than this if
 				if(restoreCost>=getHealth()) {
 					state=States.FindKey;
+					lastState=States.Restoring;
 					break;
 				}
 				while(towardsNextCoor(orientation, currentC, currentTrace.pop())==0);
